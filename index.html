@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Ciclos Termodinámicos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Simulador de Ciclos Termodinámicos</h1>
+    </header>
+    
+    <main>
+        <div class="simulator-container">
+            <div class="graph-container">
+                <canvas id="graph-canvas"></canvas>
+                <div class="legend">
+                    <div class="legend-item">
+                        <span class="color-box adiabatic"></span>
+                        <span>Adiabático</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="color-box isochoric"></span>
+                        <span>Isocórico</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="color-box isothermal"></span>
+                        <span>Isotérmico</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="color-box isobaric"></span>
+                        <span>Isobárico</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="color-box linear"></span>
+                        <span>Lineal P-V</span>
+                    </div>
+                </div>
+                <div class="graph-button-container">
+                    <button id="generate-cycle-btn">Generar Nuevo Ciclo</button>
+                </div>
+            </div>
+            
+            <div class="data-container">
+                <div class="problem-section">
+                    <h3>Datos del problema</h3>
+                    <div class="problem-data">
+                        <div class="data-property">
+                            <span class="property-label">Gas:</span>
+                            <span class="property-value gas">Gas ideal monoatómico (γ = 5/3)</span>
+                        </div>
+                        <div class="data-property">
+                            <span class="property-label">Constante R:</span>
+                            <span class="property-value r-constant">8.31 J/(mol·K)</span>
+                        </div>
+                        <div class="data-property">
+                            <span class="property-label">Cantidad de sustancia:</span>
+                            <span class="property-value amount">1 mol</span>
+                        </div>
+                        
+                        <div class="data-section">
+                            <div class="section-title">Procesos:</div>
+                            <div class="processes"></div>
+                        </div>
+                        
+                        <div class="data-section">
+                            <div class="section-title">Datos de los puntos:</div>
+                            <div class="points"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="calculations-section">
+                    <div class="table-header">
+                        <h3>Cálculo de variables termodinámicas</h3>
+                        <button id="validate-btn" class="btn">Validar Resultados</button>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="thermo-table">
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Q [J]</th>
+                                    <th>W [J]</th>
+                                    <th>ΔU [J]</th>
+                                    <th>ΔH [J]</th>
+                                    <th>ΔS [J/K]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Los datos de la tabla se generarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <p>Física II: Departamento de Física Aplicada</p>
+    </footer>
+    
+    <script src="script.js"></script>
+</body>
+</html> 

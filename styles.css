@@ -1,0 +1,560 @@
+/* Estilos generales */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #edf2f7;
+    color: #333;
+    padding: 5px;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Arial', sans-serif;
+    line-height: 1.5;
+}
+
+/* Estilos del encabezado */
+header {
+    text-align: center;
+    margin-bottom: 5px;
+    padding: 5px 0;
+    background: linear-gradient(135deg, #2c5282, #3182ce);
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    color: white;
+}
+
+h1 {
+    margin-bottom: 2px;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+h2 {
+    font-weight: 400;
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 5px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Contenedor principal del simulador */
+.simulator-container {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr; /* Ajustado para dar más espacio a la columna derecha */
+    gap: 5px;
+    max-width: 1300px;
+    margin: 0 auto;
+    height: calc(100vh - 45px);
+    overflow: hidden;
+}
+
+/* Columna izquierda con gráfica */
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 100%;
+}
+
+/* Columna derecha con datos y tabla */
+.right-column {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 5px;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+/* Estilos del contenedor de la gráfica */
+.graph-container {
+    background-color: white;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: 1 / 0.85;
+    max-height: 55vh;
+    overflow: hidden;
+}
+
+#pv-graph {
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    display: block;
+    margin-bottom: 5px;
+    flex-grow: 1;
+    width: 100%;
+    aspect-ratio: 1 / 0.85;
+    max-height: calc(100% - 30px);
+}
+
+/* Controles de la gráfica */
+.graph-controls {
+    display: flex;
+    justify-content: center;
+    background-color: white;
+    padding: 6px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos de la leyenda */
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    padding: 4px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.color-box {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+}
+
+.adiabatic {
+    background-color: #805ad5; /* Morado más suave */
+}
+
+.isochoric {
+    background-color: #e53e3e; /* Rojo más suave */
+}
+
+.isothermal {
+    background-color: #38a169; /* Verde más suave */
+}
+
+.isobaric {
+    background-color: #3182ce; /* Azul más suave */
+}
+
+.linear {
+    background-color: #ed8936; /* Naranja más suave */
+}
+
+/* Secciones */
+.problem-section, .table-section {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-section {
+    flex-grow: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Estilos de los datos del problema */
+.problem-data {
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 0;
+    border: 1px solid #eaeaea;
+    overflow-y: auto;
+    flex-grow: 1;
+    font-size: 0.85rem;
+    max-height: 20vh;
+}
+
+.problem-data h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 1px solid #3498db;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+}
+
+.gas-data, .process-data, .point-data {
+    margin-bottom: 8px;
+}
+
+.point-data div, .process-data div {
+    display: inline-block;
+    margin-right: 8px;
+    margin-bottom: 4px;
+    padding: 3px 6px;
+    background-color: #eaf2f8;
+    border-radius: 3px;
+    border-left: 2px solid #3498db;
+    font-size: 0.85rem;
+}
+
+.data-property {
+    display: flex;
+    margin-bottom: 8px;
+    align-items: baseline;
+}
+
+.property-label {
+    font-weight: 600;
+    color: #2d3748;
+    min-width: 160px;
+}
+
+.property-value {
+    color: #4a5568;
+}
+
+.data-section {
+    margin-top: 12px;
+}
+
+.section-title {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 5px;
+}
+
+.process-list, .point-list {
+    padding-left: 18px;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    list-style-type: none;
+}
+
+.process-list li, .point-list li {
+    margin-bottom: 3px;
+    padding: 3px;
+    border-radius: 4px;
+}
+
+.process-list li {
+    border-left: 3px solid #3182ce;
+    padding-left: 8px;
+    background-color: #ebf8ff;
+}
+
+.point-list li {
+    border-left: 3px solid #38a169;
+    padding-left: 8px;
+    background-color: #f0fff4;
+}
+
+/* Estilos de la tabla */
+.table-container {
+    overflow-y: auto;
+    flex-grow: 1;
+    margin-top: 5px;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.table-header h3 {
+    margin: 0;
+    padding: 0;
+    border-bottom: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+th, td {
+    padding: 4px 3px;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background-color: #f0f4f8;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+input[type="number"] {
+    width: 60px;
+    padding: 4px;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+    text-align: center;
+    font-size: 0.8rem;
+}
+
+/* Estilos para validación */
+.correct {
+    background-color: rgba(56, 161, 105, 0.15); /* Verde más refinado */
+}
+
+.incorrect {
+    background-color: rgba(229, 62, 62, 0.15); /* Rojo más refinado */
+}
+
+/* Estilos de los botones */
+.buttons-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: white;
+    padding: 12px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para el encabezado de la tabla con botón de validación */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.table-header button {
+    margin-left: 10px;
+}
+
+/* Estilos generales para los botones */
+button {
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #2c5282, #3182ce);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    background: linear-gradient(135deg, #2d3748, #4a5568);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos responsivos */
+@media (max-width: 1100px) {
+    .simulator-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: 100vh;
+    }
+    
+    .graph-container {
+        max-height: 45vh;
+    }
+    
+    .problem-data {
+        max-height: 30vh;
+    }
+    
+    .table-container {
+        max-height: 40vh;
+    }
+}
+
+/* Para pantallas muy pequeñas */
+@media (max-width: 600px) {
+    .simulator-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .graph-container {
+        max-height: 40vh;
+    }
+    
+    .problem-data {
+        max-height: 25vh;
+    }
+    
+    .table-container {
+        max-height: 30vh;
+    }
+    
+    th, td {
+        padding: 3px 2px;
+        font-size: 0.75rem;
+    }
+    
+    input[type="number"] {
+        width: 50px;
+        padding: 3px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Estilos para el botón debajo de la gráfica */
+.graph-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+/* Estilos para la tabla termodinámica */
+#thermo-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    font-size: 0.8rem;
+}
+
+#thermo-table th {
+    background-color: #3498db;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    padding: 6px 4px;
+    border: 1px solid #ddd;
+}
+
+#thermo-table td {
+    border: 1px solid #ddd;
+    padding: 5px 4px;
+    text-align: center;
+}
+
+.process-name {
+    text-align: left;
+    font-weight: 500;
+    background-color: #f8f9fa;
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.process-row:hover {
+    background-color: #f5f5f5;
+}
+
+.total-row {
+    background-color: #e8f4fd;
+}
+
+.total-label {
+    text-align: right;
+}
+
+.process-input {
+    width: 90%;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+}
+
+.total-input {
+    background-color: #f0f8ff;
+    font-weight: bold;
+}
+
+/* Modificaciones al diseño de datos del problema */
+.problem-data {
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #eaeaea;
+}
+
+.problem-data h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.gas-data, .process-data, .point-data {
+    margin-bottom: 15px;
+}
+
+.point-data div, .process-data div {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background-color: #eaf2f8;
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+}
+
+/* Mejoras generales */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+#validate-btn {
+    background-color: #27ae60;
+}
+
+#validate-btn:hover {
+    background-color: #219955;
+}
+
+.validation-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+} 
