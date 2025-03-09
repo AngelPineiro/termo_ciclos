@@ -39,9 +39,6 @@ let cycleData = [];
 let currentCycleType = "random";
 let viewCycle = false;
 let numMoles = 1; // Número de moles (1 por defecto)
-let points = []; // Para almacenar los puntos del ciclo
-let processes = []; // Para almacenar los tipos de procesos
-let needToGenerateNewCycle = true; // Flag para controlar si se necesita generar un nuevo ciclo
 
 // Variables para el sistema de gamificación
 let gameState = {
@@ -489,31 +486,6 @@ document.addEventListener('DOMContentLoaded', function() {
 function generateCycle() {
     console.log("Generando ciclo termodinámico con algoritmo robusto...");
     
-    // Verificar si realmente necesitamos generar un nuevo ciclo o si ya hay uno cargado
-    if (!needToGenerateNewCycle && points.length > 0 && processes.length > 0) {
-        console.log("Usando ciclo ya cargado desde datos compartidos. No se generará uno nuevo.");
-        
-        // Calcular la dificultad del ciclo y actualizar la interfaz
-        const difficultyLevel = gamificationSystem.calculateDifficulty(cycleData);
-        gamificationSystem.updateDifficultyDisplay(difficultyLevel);
-        
-        // Actualizar la interfaz
-        drawGraph();
-        displayProblemData();
-        setupTable();
-        
-        // Limpiar la lista de celdas validadas para el nuevo ciclo
-        gameState.validatedCells = new Set();
-        
-        // Restablecer flag para futuras generaciones
-        needToGenerateNewCycle = true;
-        
-        return cycleData;
-    }
-    
-    // Si llegamos aquí, necesitamos generar un nuevo ciclo
-    needToGenerateNewCycle = true;
-    
     // Obtener el tipo de ciclo seleccionado
     const cycleTypeSelector = document.getElementById('cycle-type-selector');
     const selectedCycle = cycleTypeSelector.value;
@@ -524,8 +496,6 @@ function generateCycle() {
     
     // Limpiar datos previos
     cycleData = [];
-    points = [];
-    processes = [];
     
     // Si no es un ciclo aleatorio, usar el algoritmo original para ciclos predefinidos
     if (selectedCycle !== 'random') {
@@ -1071,406 +1041,139 @@ function calculateProcessError(point, referencePoint, processType) {
  * Genera un ciclo predefinido basado en el tipo seleccionado
  */
 function generatePredefinedCycle(selectedCycle) {
-    console.log(`Generando ciclo predefinido: ${selectedCycle}`);
+    const cycle = PREDEFINED_CYCLES[selectedCycle];
+    const processTypes = [...cycle.processes]; // Copia los tipos de procesos
+    const numProcesses = processTypes.length;
     
-    // Obtener definición del ciclo
-    const cycleDefinition = PREDEFINED_CYCLES[selectedCycle];
-    if (!cycleDefinition) {
-        console.error(`Tipo de ciclo no válido: ${selectedCycle}`);
-        return generateSimpleCycle();
-    }
+    console.log(`Ciclo seleccionado: ${cycle.name}`);
+    console.log(`Número de procesos: ${numProcesses}`);
+    console.log("Tipos de procesos:", processTypes.map(p => PROCESS_TYPES[p]));
     
-    const cycleProcesses = cycleDefinition.processes;
-    console.log(`Secuencia de procesos: ${cycleProcesses.map(p => PROCESS_TYPES[p]).join(', ')}`);
+    // Generar el primer punto
+    const p1 = 100 + Math.random() * 100; // Presión entre 100-200 kPa
+    const v1 = 30 + Math.random() * 40;   // Volumen entre 30-70 L
+    const t1 = (p1 * v1) / (numMoles * R);
     
-    // Limpiar datos de puntos existentes
-    points = [];
-    processes = cycleProcesses.slice(); // Guardar los procesos para uso posterior
-    
-    // Determinamos la temperatura ambiente (entre 290K y 310K)
-    const ambientTemp = getRandomValue(290, 310);
-    
-    // Parámetros para el punto inicial
-    let p0 = getRandomValue(90, 120); // Presión inicial entre 90 y 120 kPa
-    let v0 = getRandomValue(5, 15);   // Volumen inicial entre 5 y 15 L
-    
-    // Ajustar para tipos específicos de ciclo
-    if (selectedCycle === 'carnot') {
-        // Para Carnot, queremos asegurar temperaturas más extremas
-        p0 = getRandomValue(80, 100);
-        v0 = getRandomValue(10, 20);
-    } else if (selectedCycle === 'otto') {
-        // Para Otto, necesitamos compresiones más fuertes
-        p0 = getRandomValue(90, 110);
-        v0 = getRandomValue(15, 25);
-    } else if (selectedCycle === 'diesel') {
-        // Para Diesel, presiones más altas
-        p0 = getRandomValue(100, 120);
-        v0 = getRandomValue(10, 15);
-    } else if (selectedCycle === 'rankine') {
-        // Para Rankine, volúmenes iniciales menores
-        p0 = getRandomValue(80, 90);
-        v0 = getRandomValue(4, 8);
-    } else if (selectedCycle === 'brayton') {
-        // Para Brayton, presiones más bajas
-        p0 = getRandomValue(70, 90);
-        v0 = getRandomValue(10, 18);
-    }
-    
-    // Punto inicial
-    const initialPoint = {
-        p: p0,
-        v: v0,
-        processType: cycleProcesses[0]
+    // Crear el primer punto con todos sus atributos
+    const firstPoint = { 
+        p: p1, 
+        v: v1, 
+        t: t1,
+        index: 0
     };
     
-    // Generar datos del ciclo
-    const cycleData = [];
-    let currentPoint = initialPoint;
+    // Iniciar array de puntos con el primer punto
+    const points = [firstPoint];
     
-    // Agregar el punto inicial a los puntos del ciclo
-    points.push({p: currentPoint.p, v: currentPoint.v});
+    // Generar los puntos siguientes de manera secuencial
+    let currentPoint = firstPoint;
     
-    // Generar cada punto del ciclo
-    for (let i = 0; i < cycleProcesses.length; i++) {
-        const processType = cycleProcesses[i];
+    for (let i = 0; i < numProcesses - 1; i++) {
+        const processType = processTypes[i];
         
-        // Añadir punto actual al ciclo con información del proceso
-        cycleData.push({
-            p: currentPoint.p,
-            v: currentPoint.v,
-            processType: processType,
-            nextIndex: (i + 1) % cycleProcesses.length
-        });
-        
-        // Si no es el último punto, generar el siguiente
-        if (i < cycleProcesses.length - 1) {
-            const nextProcessType = cycleProcesses[i + 1];
-            const nextPoint = generateNextPoint(currentPoint, processType, nextProcessType, selectedCycle, i);
-            currentPoint = nextPoint;
+        // Si estamos en el penúltimo punto, necesitamos asegurar que
+        // el último proceso pueda cerrar el ciclo
+        if (i === numProcesses - 2) {
+            // Generar un punto que permita cerrar el ciclo con el proceso final
+            const finalProcessType = processTypes[numProcesses - 1];
             
-            // Guardar el punto en el array de puntos
-            points.push({p: currentPoint.p, v: currentPoint.v});
+            // Generar puntos candidatos hasta encontrar uno viable
+            let nextPoint = null;
+            let attempts = 0;
+            const maxAttempts = 50;
+            
+            while (attempts < maxAttempts) {
+                // Generar un candidato usando el proceso actual
+                const candidate = generatePointByProcessType(currentPoint, processType);
+                
+                // Verificar si este punto puede cerrar el ciclo con el primer punto
+                if (isProcessValid(candidate, firstPoint, finalProcessType)) {
+                    nextPoint = candidate;
+                    break;
+                }
+                
+                attempts++;
+            }
+            
+            // Si no se encontró un punto viable después de los intentos máximos, regenerar el ciclo
+            if (nextPoint === null) {
+                console.log("No se pudo encontrar un punto viable para cerrar el ciclo. Regenerando...");
+                return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
+            }
+            
+            // Asignar índice y agregar al array
+            nextPoint.index = i + 1;
+            points.push(nextPoint);
+            currentPoint = nextPoint;
+        } 
+        else {
+            // Para los demás puntos, simplemente generamos según el proceso
+            const nextPoint = generatePointByProcessType(currentPoint, processType);
+            nextPoint.index = i + 1;
+            points.push(nextPoint);
+            currentPoint = nextPoint;
         }
     }
     
-    // Ajustar el último punto para que cierre el ciclo y vuelva al inicial
-    const lastIndex = cycleProcesses.length - 1;
-    const lastProcessType = cycleProcesses[lastIndex];
-    const firstProcessType = cycleProcesses[0];
-    
-    // Usar función especializada para el último punto
-    const adjustedLastPoint = adjustLastPoint(
-        cycleData[lastIndex],
-        initialPoint,
-        lastProcessType,
-        firstProcessType,
-        selectedCycle
-    );
-    
-    // Actualizar el último punto en cycleData
-    cycleData[lastIndex].p = adjustedLastPoint.p;
-    cycleData[lastIndex].v = adjustedLastPoint.v;
-    
-    // Actualizar también el último punto en el array de points
-    if (points.length === cycleProcesses.length) {
-        points[lastIndex] = {p: adjustedLastPoint.p, v: adjustedLastPoint.v};
+    // Asignar los tipos de procesos y los índices de los siguientes puntos
+    for (let i = 0; i < points.length; i++) {
+        points[i].processType = processTypes[i];
+        points[i].nextIndex = (i + 1) % points.length;
     }
     
-    console.log(`Ciclo ${selectedCycle} generado con ${cycleData.length} puntos:`, JSON.parse(JSON.stringify(cycleData)));
-    console.log("Puntos guardados:", JSON.parse(JSON.stringify(points)));
-    console.log("Procesos guardados:", JSON.parse(JSON.stringify(processes)));
+    // Verificación final: comprobar que todos los procesos son físicamente viables
+    let allProcessesValid = true;
     
-    return cycleData;
-    
-    // Función interna para generar el siguiente punto según el tipo de ciclo y procesos
-    function generateNextPoint(currentPoint, currentProcessType, nextProcessType, cycleType, index) {
-        // Parámetros base para generar el siguiente punto
-        let multiplier = 0;
-        let parameter = 0;
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        const nextIndex = point.nextIndex;
+        const nextPoint = points[nextIndex];
+        const processType = point.processType;
         
-        // Ajustar parámetros según el tipo de ciclo
-        switch (cycleType) {
-            case 'carnot':
-                if (currentProcessType === 2) { // Isotérmico
-                    multiplier = getRandomValue(1.8, 2.5);
-                } else if (currentProcessType === 0) { // Adiabático
-                    multiplier = getRandomValue(0.6, 0.8);
-                }
-                break;
-                
-            case 'otto':
-                if (currentProcessType === 1) { // Isocórico
-                    multiplier = getRandomValue(2.0, 3.0);
-                } else if (currentProcessType === 0) { // Adiabático
-                    multiplier = index === 0 ? getRandomValue(0.3, 0.5) : getRandomValue(2.5, 3.5);
-                }
-                break;
-                
-            case 'diesel':
-                if (currentProcessType === 0) { // Adiabático
-                    multiplier = index === 0 ? getRandomValue(0.25, 0.4) : getRandomValue(3.0, 4.0);
-                } else if (currentProcessType === 3) { // Isobárico
-                    multiplier = getRandomValue(1.5, 2.0);
-                } else if (currentProcessType === 1) { // Isocórico
-                    multiplier = getRandomValue(0.3, 0.45);
-                }
-                break;
-                
-            case 'rankine':
-                if (currentProcessType === 3) { // Isobárico
-                    multiplier = getRandomValue(1.6, 2.2);
-                } else if (currentProcessType === 0) { // Adiabático
-                    multiplier = getRandomValue(0.3, 0.5);
-                } else if (currentProcessType === 1) { // Isocórico
-                    multiplier = getRandomValue(0.6, 0.8);
-                } else if (currentProcessType === 2) { // Isotérmico
-                    multiplier = getRandomValue(3.0, 4.0);
-                }
-                break;
-                
-            case 'brayton':
-                if (currentProcessType === 0) { // Adiabático
-                    multiplier = index === 0 ? getRandomValue(3.0, 4.0) : getRandomValue(0.25, 0.35);
-                } else if (currentProcessType === 3) { // Isobárico
-                    multiplier = index === 1 ? getRandomValue(1.8, 2.3) : getRandomValue(0.5, 0.7);
-                }
-                break;
-                
-            default:
-                multiplier = getRandomValue(1.5, 2.5);
+        if (!isProcessValid(point, nextPoint, processType)) {
+            console.log(`Proceso inválido detectado entre puntos ${i+1} y ${nextIndex+1}. Regenerando ciclo...`);
+            allProcessesValid = false;
+            break;
         }
-        
-        // Generar el siguiente punto según el tipo de proceso
-        let nextPoint = { p: 0, v: 0 };
-        
-        switch (currentProcessType) {
-            case 0: // Adiabático: PV^γ = constante
-                if (index === 0 && cycleType === 'otto') {
-                    // Compresión adiabática en ciclo Otto (1→2)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                } else if (index === 2 && cycleType === 'otto') {
-                    // Expansión adiabática en ciclo Otto (3→4)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                } else if (cycleType === 'diesel' && index === 0) {
-                    // Compresión adiabática en ciclo Diesel (1→2)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                } else if (cycleType === 'diesel' && index === 2) {
-                    // Expansión adiabática en ciclo Diesel (3→4)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                } else if (cycleType === 'brayton') {
-                    if (index === 0) {
-                        // Compresión adiabática en ciclo Brayton (1→2)
-                        nextPoint.p = currentPoint.p * multiplier;
-                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                        nextPoint.v = Math.pow(k / nextPoint.p, 1 / GAMMA);
-                    } else if (index === 2) {
-                        // Expansión adiabática en ciclo Brayton (3→4)
-                        nextPoint.p = currentPoint.p * multiplier;
-                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                        nextPoint.v = Math.pow(k / nextPoint.p, 1 / GAMMA);
-                    }
-                } else if (cycleType === 'carnot') {
-                    if (index === 1) {
-                        // Expansión adiabática en ciclo Carnot (2→3)
-                        nextPoint.v = currentPoint.v * multiplier;
-                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                        nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                    } else if (index === 3) {
-                        // Compresión adiabática en ciclo Carnot (4→1)
-                        nextPoint.v = currentPoint.v * multiplier;
-                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                        nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                    }
-                } else {
-                    // Proceso adiabático genérico
-                    nextPoint.v = currentPoint.v * multiplier;
-                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
-                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
-                }
-                break;
-                
-            case 1: // Isocórico: V constante
-                nextPoint.v = currentPoint.v;
-                if (cycleType === 'otto' && index === 1) {
-                    // Adición de calor a volumen constante en ciclo Otto (2→3)
-                    nextPoint.p = currentPoint.p * multiplier;
-                } else if (cycleType === 'otto' && index === 3) {
-                    // Rechazo de calor a volumen constante en ciclo Otto (4→1)
-                    nextPoint.p = currentPoint.p * multiplier;
-                } else if (cycleType === 'diesel' && index === 3) {
-                    // Rechazo de calor a volumen constante en ciclo Diesel (4→1)
-                    nextPoint.p = currentPoint.p * multiplier;
-                } else {
-                    // Proceso isocórico genérico
-                    nextPoint.p = currentPoint.p * multiplier;
-                }
-                break;
-                
-            case 2: // Isotérmico: PV = constante
-                if (cycleType === 'carnot' && index === 0) {
-                    // Expansión isotérmica en ciclo Carnot (1→2)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
-                } else if (cycleType === 'carnot' && index === 2) {
-                    // Compresión isotérmica en ciclo Carnot (3→4)
-                    nextPoint.v = currentPoint.v * multiplier;
-                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
-                } else {
-                    // Proceso isotérmico genérico
-                    nextPoint.v = currentPoint.v * multiplier;
-                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
-                }
-                break;
-                
-            case 3: // Isobárico: P constante
-                nextPoint.p = currentPoint.p;
-                if (cycleType === 'diesel' && index === 1) {
-                    // Adición de calor a presión constante en ciclo Diesel (2→3)
-                    nextPoint.v = currentPoint.v * multiplier;
-                } else if (cycleType === 'brayton' && index === 1) {
-                    // Adición de calor a presión constante en ciclo Brayton (2→3)
-                    nextPoint.v = currentPoint.v * multiplier;
-                } else if (cycleType === 'brayton' && index === 3) {
-                    // Rechazo de calor a presión constante en ciclo Brayton (4→1)
-                    nextPoint.v = currentPoint.v * multiplier;
-                } else {
-                    // Proceso isobárico genérico
-                    nextPoint.v = currentPoint.v * multiplier;
-                }
-                break;
-                
-            case 4: // Lineal: P = mV + b
-                // Para proceso lineal se usan parámetros específicos
-                parameter = getRandomValue(0.5, 1.5);
-                const slope = (currentPoint.p - parameter * currentPoint.v) / 
-                              (currentPoint.v * (multiplier - 1));
-                
-                nextPoint.v = currentPoint.v * multiplier;
-                nextPoint.p = slope * (nextPoint.v - currentPoint.v) + currentPoint.p;
-                break;
-                
-            default:
-                console.error(`Tipo de proceso no válido: ${currentProcessType}`);
-                nextPoint = { 
-                    p: currentPoint.p * getRandomValue(0.8, 1.2), 
-                    v: currentPoint.v * getRandomValue(0.8, 1.2) 
-                };
-        }
-        
-        return nextPoint;
     }
     
-    // Función interna para ajustar el último punto y cerrar correctamente el ciclo
-    function adjustLastPoint(lastPoint, firstPoint, lastProcessType, firstProcessType, cycleType) {
-        // Crear copia para no modificar el original directamente
-        const adjustedPoint = { ...lastPoint };
-        
-        switch (lastProcessType) {
-            case 0: // Adiabático: PV^γ = constante
-                // Para proceso adiabático, mantenemos PV^γ constante
-                const k = adjustedPoint.p * Math.pow(adjustedPoint.v, GAMMA);
-                
-                if (firstProcessType === 1) { // Siguiente proceso isocórico
-                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
-                    adjustedPoint.v = firstPoint.v;
-                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
-                } else if (firstProcessType === 3) { // Siguiente proceso isobárico
-                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
-                    adjustedPoint.p = firstPoint.p;
-                    adjustedPoint.v = Math.pow(k / adjustedPoint.p, 1 / GAMMA);
-                } else if (firstProcessType === 2) { // Siguiente proceso isotérmico
-                    // Si el siguiente proceso es isotérmico, ajustamos para que PV sea igual
-                    // Aquí necesitamos resolver un sistema de ecuaciones
-                    // PV^γ = k y PV = PV (del primer punto)
-                    const c = firstPoint.p * firstPoint.v; // PV del primer punto
-                    adjustedPoint.v = Math.pow(c / k, 1 / (1 - GAMMA));
-                    adjustedPoint.p = c / adjustedPoint.v;
-                } else {
-                    // En otros casos, intentamos mantener PV^γ y ajustar para cerrar el ciclo
-                    adjustedPoint.v = firstPoint.v;
-                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
-                }
-                break;
-                
-            case 1: // Isocórico: V constante
-                // Para proceso isocórico, mantenemos V constante
-                adjustedPoint.v = adjustedPoint.v;
-                
-                if (firstProcessType === 3) { // Siguiente proceso isobárico
-                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
-                    adjustedPoint.p = firstPoint.p;
-                } else if (firstProcessType === 0) { // Siguiente proceso adiabático
-                    // Ajustar P para que el siguiente proceso adiabático llegue al primer punto
-                    const k = firstPoint.p * Math.pow(firstPoint.v, GAMMA);
-                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
-                } else {
-                    // En otros casos, ajustamos P para que el ciclo cierre
-                    adjustedPoint.p = firstPoint.p;
-                }
-                break;
-                
-            case 2: // Isotérmico: PV = constante
-                // Para proceso isotérmico, mantenemos PV constante
-                const c = adjustedPoint.p * adjustedPoint.v;
-                
-                if (firstProcessType === 1) { // Siguiente proceso isocórico
-                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
-                    adjustedPoint.v = firstPoint.v;
-                    adjustedPoint.p = c / adjustedPoint.v;
-                } else if (firstProcessType === 3) { // Siguiente proceso isobárico
-                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
-                    adjustedPoint.p = firstPoint.p;
-                    adjustedPoint.v = c / adjustedPoint.p;
-                } else {
-                    // En otros casos, ajustamos para que el ciclo cierre
-                    adjustedPoint.v = firstPoint.v;
-                    adjustedPoint.p = c / adjustedPoint.v;
-                }
-                break;
-                
-            case 3: // Isobárico: P constante
-                // Para proceso isobárico, mantenemos P constante
-                adjustedPoint.p = adjustedPoint.p;
-                
-                if (firstProcessType === 1) { // Siguiente proceso isocórico
-                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
-                    adjustedPoint.v = firstPoint.v;
-                } else if (firstProcessType === 0) { // Siguiente proceso adiabático
-                    // Ajustar V para que el siguiente proceso adiabático llegue al primer punto
-                    const k = firstPoint.p * Math.pow(firstPoint.v, GAMMA);
-                    adjustedPoint.v = Math.pow(k / adjustedPoint.p, 1 / GAMMA);
-                } else {
-                    // En otros casos, ajustamos V para que el ciclo cierre
-                    adjustedPoint.v = firstPoint.v;
-                }
-                break;
-                
-            case 4: // Lineal: P = mV + b
-                // Para un proceso lineal, generalmente hay flexibilidad
-                // Podemos ajustar directamente para coincidir con el primer punto
-                adjustedPoint.p = firstPoint.p;
-                adjustedPoint.v = firstPoint.v;
-                break;
-                
-            default:
-                console.error(`Tipo de proceso no válido para ajustar último punto: ${lastProcessType}`);
-        }
-        
-        // Hacer un pequeño ajuste para asegurar que cierre exactamente igual
-        adjustedPoint.p = firstPoint.p;
-        adjustedPoint.v = firstPoint.v;
-        
-        return adjustedPoint;
+    if (!allProcessesValid) {
+        return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
     }
+    
+    // Actualizar el array global de datos del ciclo
+    cycleData = points;
+    
+    // Verificar y mostrar información detallada sobre los puntos
+    for (let i = 0; i < cycleData.length; i++) {
+        const point = cycleData[i];
+        const nextIndex = point.nextIndex;
+        const nextPoint = cycleData[nextIndex];
+        const processType = point.processType;
+        
+        console.log(`Punto ${i+1}: P=${point.p.toFixed(2)} kPa, V=${point.v.toFixed(2)} L`);
+        console.log(`  → Proceso ${PROCESS_TYPES[processType]} a Punto ${nextIndex+1}`);
+        
+        // Verificar que el proceso cumple las leyes físicas
+        if (processType === 0) { // Adiabático
+            const k1 = point.p * Math.pow(point.v, GAMMA);
+            const k2 = nextPoint.p * Math.pow(nextPoint.v, GAMMA);
+            console.log(`  → Validación Adiabático: k1=${k1.toFixed(2)}, k2=${k2.toFixed(2)}, error=${(Math.abs(k1-k2)/k1*100).toFixed(6)}%`);
+        } else if (processType === 1) { // Isocórico
+            console.log(`  → Validación Isocórico: v1=${point.v.toFixed(2)}, v2=${nextPoint.v.toFixed(2)}, error=${(Math.abs(point.v-nextPoint.v)/point.v*100).toFixed(6)}%`);
+        } else if (processType === 2) { // Isotérmico
+            const pv1 = point.p * point.v;
+            const pv2 = nextPoint.p * nextPoint.v;
+            console.log(`  → Validación Isotérmico: pv1=${pv1.toFixed(2)}, pv2=${pv2.toFixed(2)}, error=${(Math.abs(pv1-pv2)/pv1*100).toFixed(6)}%`);
+        } else if (processType === 3) { // Isobárico
+            console.log(`  → Validación Isobárico: p1=${point.p.toFixed(2)}, p2=${nextPoint.p.toFixed(2)}, error=${(Math.abs(point.p-nextPoint.p)/point.p*100).toFixed(6)}%`);
+        }
+    }
+    
+    console.log("Ciclo predefinido generado con éxito:", cycleData);
+    
+    // Retornar los puntos generados
+    return points;
 }
 
 /**
@@ -2160,14 +1863,7 @@ function drawGraph() {
             return;
         }
         
-        // Si estamos usando puntos y procesos guardados para un ciclo compartido
-        const usingSavedPoints = points.length > 0 && processes.length > 0 && !needToGenerateNewCycle;
-        
-        if (usingSavedPoints) {
-            console.log(`Dibujando ciclo desde puntos guardados (${points.length} puntos).`);
-        } else {
-            console.log(`Dibujando ciclo con ${cycleData.length} puntos:`, cycleData);
-        }
+        console.log(`Dibujando ciclo con ${cycleData.length} puntos:`, cycleData);
         
         // Determinar límites del gráfico
         let minP = Infinity;
@@ -2175,12 +1871,9 @@ function drawGraph() {
         let minV = Infinity;
         let maxV = -Infinity;
         
-        // Usar points o cycleData según corresponda
-        const dataToUse = usingSavedPoints ? points : cycleData;
-        
         // Verificar que los datos son válidos
         let hasValidData = true;
-        dataToUse.forEach((point, index) => {
+        cycleData.forEach((point, index) => {
             if (typeof point.p !== 'number' || typeof point.v !== 'number' || 
                 isNaN(point.p) || isNaN(point.v) || 
                 point.p <= 0 || point.v <= 0) {
@@ -2202,10 +1895,14 @@ function drawGraph() {
             // Mensaje de error traducido
             let errorText = 'Error: Datos de ciclo inválidos';
             if (typeof getTranslation === 'function') {
-                errorText = getTranslation('invalid_cycle_data');
+                errorText = getTranslation('error_invalid_data');
             }
             
             ctx.fillText(errorText, canvas.width / 2, canvas.height / 2);
+            
+            // Generar un ciclo de emergencia
+            console.error("Generando ciclo de emergencia debido a datos inválidos");
+            setTimeout(generateSimpleCycle, 500);
             return;
         }
         
@@ -2323,31 +2020,83 @@ function drawGraph() {
         ctx.restore();
         
         // DIBUJAR LOS PROCESOS
-        for (let i = 0; i < dataToUse.length; i++) {
-            const startPoint = dataToUse[i];
-            const endPoint = dataToUse[(i + 1) % dataToUse.length]; // Ciclo cerrado
+        for (let i = 0; i < cycleData.length; i++) {
+            const point = cycleData[i];
+            const nextIndex = point.nextIndex !== undefined ? point.nextIndex : (i + 1) % cycleData.length;
+            const nextPoint = cycleData[nextIndex];
+            const processType = point.processType;
             
-            // Determinar el tipo de proceso
-            let processType;
-            if (usingSavedPoints) {
-                // Si estamos usando puntos guardados, obtenemos el tipo de proceso del array processes
-                processType = processes[i];
-            } else {
-                // Si no, lo obtenemos del campo processType en cycleData
-                processType = startPoint.processType;
+            if (!point || !nextPoint) {
+                console.error(`Error al dibujar proceso ${i}: punto inválido`);
+                continue;
             }
             
-            // Establecer color según tipo de proceso
-            ctx.strokeStyle = PROCESS_COLORS[processType];
-            ctx.lineWidth = 2.5;
+            const x1 = scaleX(point.v);
+            const y1 = scaleY(point.p);
+            const x2 = scaleX(nextPoint.v);
+            const y2 = scaleY(nextPoint.p);
             
             // Dibujar el proceso
-            dibujarProceso(ctx, startPoint, endPoint, processType, scaleX, scaleY);
+            ctx.beginPath();
+            
+            // Color y grosor según el tipo de proceso
+            ctx.lineWidth = 2;
+            
+            switch (processType) {
+                case 0: // Adiabático
+                    ctx.strokeStyle = '#7c3aed'; // Morado
+                    dibujarProceso(ctx, point, nextPoint, processType, scaleX, scaleY);
+                    break;
+                case 1: // Isocórico
+                    ctx.strokeStyle = '#ef4444'; // Rojo
+                    dibujarProceso(ctx, point, nextPoint, processType, scaleX, scaleY);
+                    break;
+                case 2: // Isotérmico
+                    ctx.strokeStyle = '#22c55e'; // Verde
+                    dibujarProceso(ctx, point, nextPoint, processType, scaleX, scaleY);
+                    break;
+                case 3: // Isobárico
+                    ctx.strokeStyle = '#3b82f6'; // Azul
+                    dibujarProceso(ctx, point, nextPoint, processType, scaleX, scaleY);
+                    break;
+                case 4: // Lineal
+                    ctx.strokeStyle = '#f97316'; // Naranja
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    break;
+                default:
+                    ctx.strokeStyle = '#94a3b8'; // Gris
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+            }
+            
+            // Etiquetar el proceso
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Solo etiquetar si hay suficiente espacio
+            if (distance > 30) {
+                const labelOffsetX = -dy * 15 / distance;
+                const labelOffsetY = dx * 15 / distance;
+                
+                ctx.fillStyle = '#1e293b';
+                ctx.font = `${baseFontSize}px Segoe UI`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${i+1}→${nextIndex+1}`, midX + labelOffsetX, midY + labelOffsetY);
+            }
         }
         
         // DIBUJAR LOS PUNTOS DEL CICLO
-        for (let i = 0; i < dataToUse.length; i++) {
-            const point = dataToUse[i];
+        for (let i = 0; i < cycleData.length; i++) {
+            const point = cycleData[i];
             const x = scaleX(point.v);
             const y = scaleY(point.p);
             
@@ -2565,90 +2314,233 @@ function displayProblemData() {
     const dataContainer = document.createElement('div');
     dataContainer.className = 'problem-data-container';
     
-    // Procesos y Puntos: Determinar qué fuente de datos usar
-    const usingSavedPoints = points.length > 0 && processes.length > 0 && !needToGenerateNewCycle;
-    
-    // Datos de los Procesos
-    const processesSection = document.createElement('div');
-    processesSection.className = 'process-data';
-    processesSection.innerHTML = '<h4>Procesos:</h4>';
-    
-    const processList = document.createElement('div');
-    processList.className = 'process-list';
-    
-    // Si estamos usando datos guardados o los datos normales
-    if (usingSavedPoints) {
-        // Usar los procesos guardados
-        processes.forEach((processType, i) => {
-            const startPoint = i + 1;
-            const endPoint = (i + 1) % points.length + 1;
-            
-            // Obtener el nombre traducido del proceso
-            let processName = PROCESS_TYPES[processType];
-            if (typeof getTranslation === 'function') {
-                // Traducciones: adiabatic, isochoric, isothermal, isobaric, linear
-                processName = getTranslation(PROCESS_TYPES_KEYS[processType]) || processName;
-            }
-            
-            const listItem = document.createElement('div');
-            listItem.innerHTML = `${startPoint}→${endPoint}: ${processName}`;
-            processList.appendChild(listItem);
-        });
-    } else {
-        // Usar cycleData normalmente
-        cycleData.forEach((point, i) => {
-            const nextIndex = point.nextIndex !== undefined ? point.nextIndex : (i + 1) % cycleData.length;
-            const processType = point.processType;
-            
-            // Obtener el nombre traducido del proceso
-            let processName = PROCESS_TYPES[processType];
-            if (typeof getTranslation === 'function') {
-                // Traducciones: adiabatic, isochoric, isothermal, isobaric, linear
-                processName = getTranslation(PROCESS_TYPES_KEYS[processType]) || processName;
-            }
-            
-            const listItem = document.createElement('div');
-            listItem.innerHTML = `${i + 1}→${nextIndex + 1}: ${processName}`;
-            processList.appendChild(listItem);
-        });
-    }
-    
-    processesSection.appendChild(processList);
-    
-    // Datos de los Puntos
+    // Puntos (en forma de tabla con información mínima necesaria)
     const pointsSection = document.createElement('div');
     pointsSection.className = 'point-data';
-    pointsSection.innerHTML = '<h4>Puntos del Ciclo:</h4>';
     
-    const pointsList = document.createElement('div');
-    pointsList.className = 'point-list';
+    // Identificar el tipo de ciclo actual
+    const cycleType = document.getElementById('cycle-type-selector').value;
     
-    // Determinar qué datos de puntos usar
-    const dataToUse = usingSavedPoints ? points : cycleData;
+    // Crear la tabla de puntos
+    const tableDiv = document.createElement('div');
+    tableDiv.className = 'points-table-container';
     
-    dataToUse.forEach((point, i) => {
-        const pointLabel = `Punto ${i + 1}:`;
-        const pValue = point.p.toFixed(2);
-        const vValue = point.v.toFixed(2);
+    // Determinar qué información mostrar
+    const showVariables = {};
+
+    // Aplicar el mismo algoritmo para todos los ciclos, incluyendo los predefinidos
+    // Inicializar todos los puntos como no visibles
+    for (let i = 1; i <= cycleData.length; i++) {
+        showVariables[i] = { p: false, v: false, t: false };
+    }
+    
+    // 1. Primer punto: Mostrar siempre 2 variables (P y V por defecto)
+    showVariables[1].p = true;
+    showVariables[1].v = true;
+    
+    // 2. Recorrer secuencialmente los puntos, considerando las restricciones
+    // Array para rastrear qué puntos ya están completamente resueltos
+    const resolvedPoints = [true]; // El punto 0 no existe, el punto 1 ya está resuelto
+    for (let i = 2; i <= cycleData.length; i++) {
+        resolvedPoints.push(false); // Inicializar como no resuelto
+    }
+    resolvedPoints[1] = true; // El primer punto está resuelto
+    
+    // Resolver secuencialmente los puntos 2 a n
+    for (let i = 1; i < cycleData.length; i++) {
+        const currentPoint = cycleData[i - 1]; // Punto actual (ya resuelto)
+        const nextIndex = currentPoint.nextIndex; // Índice del siguiente punto
+        const nextPointNum = nextIndex + 1; // Número del siguiente punto (1-indexed)
+        const processType = currentPoint.processType; // Tipo de proceso que conecta
         
-        // Calcular temperatura usando PV = nRT
-        const tValue = (point.p * point.v / (numMoles * R)).toFixed(2);
+        // Si el siguiente punto ya está resuelto, continuar
+        if (resolvedPoints[nextPointNum]) continue;
         
-        const listItem = document.createElement('div');
-        listItem.innerHTML = `${pointLabel} P = ${pValue} kPa, V = ${vValue} L, T = ${tValue} K`;
-        pointsList.appendChild(listItem);
-    });
+        // Según el tipo de proceso, aplicar las reglas correspondientes
+        if (processType === 4) { // Proceso lineal
+            // Para proceso lineal, mostrar 2 variables cualesquiera
+            let varsToAssign = 2;
+            const vars = ['p', 'v', 't'];
+            // Asignar variables aleatoriamente
+            while (varsToAssign > 0 && vars.length > 0) {
+                const randomIndex = Math.floor(Math.random() * vars.length);
+                const varToShow = vars[randomIndex];
+                showVariables[nextPointNum][varToShow] = true;
+                vars.splice(randomIndex, 1); // Eliminar la variable ya asignada
+                varsToAssign--;
+            }
+        } else { // Procesos con restricción física
+            // Para procesos con restricción, mostrar 1 variable que no sea la que impone la restricción
+            // Determinar qué variable no puede mostrarse según el tipo de proceso
+            let restrictedVar = null;
+            if (processType === 1) restrictedVar = 'v'; // Isocórico - V constante
+            else if (processType === 2) restrictedVar = 't'; // Isotérmico - T constante
+            else if (processType === 3) restrictedVar = 'p'; // Isobárico - P constante
+            
+            // Lista de variables posibles
+            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+            
+            // Elegir aleatoriamente una variable que no sea la restringida
+            const randomIndex = Math.floor(Math.random() * vars.length);
+            const varToShow = vars[randomIndex];
+            showVariables[nextPointNum][varToShow] = true;
+        }
+        
+        // Marcar el punto como resuelto
+        resolvedPoints[nextPointNum] = true;
+    }
     
-    pointsSection.appendChild(pointsList);
+    // 3. Tratamiento especial para el último punto que cierra el ciclo
+    const lastPointNum = cycleData.length;
+    const lastPoint = cycleData[lastPointNum - 1];
     
-    // Agregar secciones al contenedor
-    problemDataSection.appendChild(gasSection);
-    problemDataSection.appendChild(document.createElement('hr'));
+    // Solo si el último punto conecta con el primero (cierra el ciclo)
+    if (lastPoint.nextIndex === 0) {
+        const processTypeToFirst = lastPoint.processType;
+        const processTypeFromPrev = cycleData[lastPointNum - 2].processType;
+        
+        // Si ambos son procesos lineales, ya está resuelto por el paso anterior
+        if (processTypeToFirst === 4 && processTypeFromPrev === 4) {
+            // Ya se asignaron 2 variables, no hacer nada más
+        } 
+        // Si uno es lineal y el otro no
+        else if (processTypeToFirst === 4 || processTypeFromPrev === 4) {
+            // Mantener una variable según la restricción que no sea lineal
+            let restrictedVar = null;
+            if (processTypeToFirst !== 4) {
+                // La restricción viene del proceso que conecta con el primero
+                if (processTypeToFirst === 1) restrictedVar = 'v'; // Isocórico
+                else if (processTypeToFirst === 2) restrictedVar = 't'; // Isotérmico
+                else if (processTypeToFirst === 3) restrictedVar = 'p'; // Isobárico
+            } else {
+                // La restricción viene del proceso anterior
+                if (processTypeFromPrev === 1) restrictedVar = 'v'; // Isocórico
+                else if (processTypeFromPrev === 2) restrictedVar = 't'; // Isotérmico
+                else if (processTypeFromPrev === 3) restrictedVar = 'p'; // Isobárico
+            }
+            
+            // Resetear las variables y asignar solo las correctas
+            showVariables[lastPointNum] = { p: false, v: false, t: false };
+            
+            // Asignar una variable que no sea la restringida
+            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+            const varToShow = vars[Math.floor(Math.random() * vars.length)];
+            showVariables[lastPointNum][varToShow] = true;
+        }
+        // Si ambos imponen restricciones
+        else {
+            // Determinar las variables restringidas por ambos procesos
+            let restrictedVars = [];
+            let hasAdiabatic = false;
+            let hasNonLinearNonAdiabatic = false;
+            
+            // Verificar si hay adiabática y otra restricción no lineal
+            if (processTypeFromPrev === 0 || processTypeToFirst === 0) {
+                hasAdiabatic = true;
+            }
+            
+            if ((processTypeFromPrev >= 1 && processTypeFromPrev <= 3) || 
+                (processTypeToFirst >= 1 && processTypeToFirst <= 3)) {
+                hasNonLinearNonAdiabatic = true;
+            }
+            
+            // Si hay una adiabática y otra restricción no lineal, el punto está determinado
+            if (hasAdiabatic && hasNonLinearNonAdiabatic) {
+                // El punto está completamente determinado, no mostrar ninguna variable
+                showVariables[lastPointNum] = { p: false, v: false, t: false };
+            } else {
+                // Restricción del proceso que conecta con el punto anterior
+                if (processTypeFromPrev === 1) restrictedVars.push('v'); // Isocórico
+                else if (processTypeFromPrev === 2) restrictedVars.push('t'); // Isotérmico
+                else if (processTypeFromPrev === 3) restrictedVars.push('p'); // Isobárico
+                
+                // Restricción del proceso que conecta con el primer punto
+                if (processTypeToFirst === 1) restrictedVars.push('v'); // Isocórico
+                else if (processTypeToFirst === 2) restrictedVars.push('t'); // Isotérmico
+                else if (processTypeToFirst === 3) restrictedVars.push('p'); // Isobárico
+                
+                // Si hay dos restricciones diferentes (que no sean adiabáticas), el punto está determinado
+                if (restrictedVars.length === 2 && restrictedVars[0] !== restrictedVars[1]) {
+                    // El punto está determinado por las dos restricciones, eliminar todas las variables
+                    showVariables[lastPointNum] = { p: false, v: false, t: false };
+                } else {
+                    // Solo hay una restricción o ambas son iguales, o ambas son adiabáticas
+                    // Resetear las variables y asignar solo una que no esté restringida
+                    showVariables[lastPointNum] = { p: false, v: false, t: false };
+                    
+                    // Si ambos procesos son adiabáticos, mostrar una variable cualquiera
+                    if (processTypeFromPrev === 0 && processTypeToFirst === 0) {
+                        const varToShow = ['p', 'v', 't'][Math.floor(Math.random() * 3)];
+                        showVariables[lastPointNum][varToShow] = true;
+                    } else {
+                        // Obtener variables no restringidas
+                        const uniqueRestricted = [...new Set(restrictedVars)]; // Eliminar duplicados
+                        const vars = ['p', 'v', 't'].filter(v => !uniqueRestricted.includes(v));
+                        
+                        if (vars.length > 0) {
+                            const varToShow = vars[Math.floor(Math.random() * vars.length)];
+                            showVariables[lastPointNum][varToShow] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
     
-    dataContainer.appendChild(processesSection);
+    if (cycleType === 'random') {
+        console.log("Variables mostradas para ciclo aleatorio (algoritmo completo):", showVariables);
+    } else {
+        console.log(`Variables mostradas para ciclo ${cycleType} (algoritmo general):`, showVariables);
+    }
+    
+    // Construir la tabla HTML
+    let tableHTML = `
+        <h4>${typeof getTranslation === 'function' ? getTranslation('point_data') : 'Datos de los Puntos'}</h4>
+        <div class="points-table-container">
+        <table class="points-table">
+            <thead>
+                <tr>
+                    <th>${typeof getTranslation === 'function' ? getTranslation('point') : 'Punto'}</th>
+                    <th>P (kPa)</th>
+                    <th>V (L)</th>
+                    <th>T (K)</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    for (let i = 0; i < cycleData.length; i++) {
+        const point = cycleData[i];
+        const pointNumber = i + 1;
+        const variables = showVariables[pointNumber];
+        
+        tableHTML += `
+            <tr>
+                <td>${pointNumber}</td>
+                <td>${variables.p ? point.p.toFixed(2) : '—'}</td>
+                <td>${variables.v ? point.v.toFixed(4) : '—'}</td>
+                <td>${variables.t ? point.t.toFixed(2) : '—'}</td>
+            </tr>
+        `;
+    }
+    
+    tableHTML += `
+            </tbody>
+        </table>
+        </div>
+    `;
+    
+    pointsSection.innerHTML = tableHTML;
+    
+    // Añadir las dos columnas al contenedor
+    dataContainer.appendChild(gasSection);
     dataContainer.appendChild(pointsSection);
     
+    // Añadir el contenedor a la sección de datos del problema
     problemDataSection.appendChild(dataContainer);
+    
+    // Ahora configuramos la tabla de cálculos
+    setupTable();
 }
 
 /**
@@ -3116,162 +3008,63 @@ function shareExercise() {
         cycleType: document.getElementById('cycle-type-selector').value,
         cycleData: cycleData,
         numMoles: numMoles,
-        // Guardar todos los puntos exactos del ciclo
-        points: points.map(p => ({p: p.p, v: p.v})), // Hacemos una copia limpia
-        // Guardar los procesos para cada segmento
-        processes: processes.slice(), // Hacemos una copia del array
         // Recopilar las respuestas del usuario si hay alguna
-        userAnswers: {},
-        // Guardar información de validación
-        validatedCells: Array.from(gameState.validatedCells),
-        points: gameState.points,
-        energyLevel: gameState.energy,
-        currentDifficulty: gameState.currentDifficulty
+        userAnswers: {}
     };
     
-    console.log("Estado a compartir:", JSON.parse(JSON.stringify(exerciseState)));
+    // Capturar las respuestas que el usuario haya introducido hasta el momento
+    for (let i = 0; i < cycleData.length; i++) {
+        exerciseState.userAnswers[`q-${i}`] = document.getElementById(`q-${i}`).value;
+        exerciseState.userAnswers[`w-${i}`] = document.getElementById(`w-${i}`).value;
+        exerciseState.userAnswers[`du-${i}`] = document.getElementById(`du-${i}`).value;
+        exerciseState.userAnswers[`dh-${i}`] = document.getElementById(`dh-${i}`).value;
+        exerciseState.userAnswers[`ds-${i}`] = document.getElementById(`ds-${i}`).value;
+    }
     
-    // Capturar todas las respuestas del usuario
-    const inputElements = document.querySelectorAll('#thermo-table input');
-    inputElements.forEach(input => {
-        if (input.id && input.value) {
-            exerciseState.userAnswers[input.id] = input.value;
-            
-            // También guardar el estado de validación (correcto/incorrecto)
-            if (input.classList.contains('correct')) {
-                exerciseState.userAnswers[input.id + '_validation'] = 'correct';
-            } else if (input.classList.contains('incorrect')) {
-                exerciseState.userAnswers[input.id + '_validation'] = 'incorrect';
-            }
-        }
-    });
+    // Incluir también los totales
+    exerciseState.userAnswers[`q-total`] = document.getElementById(`q-total`).value;
+    exerciseState.userAnswers[`w-total`] = document.getElementById(`w-total`).value;
+    exerciseState.userAnswers[`du-total`] = document.getElementById(`du-total`).value;
+    exerciseState.userAnswers[`dh-total`] = document.getElementById(`dh-total`).value;
+    exerciseState.userAnswers[`ds-total`] = document.getElementById(`ds-total`).value;
     
-    // Comprimir los datos para hacer la URL más corta
+    // Convertir a JSON y codificar para URL
     const stateJson = JSON.stringify(exerciseState);
-    const compressedState = LZString.compressToEncodedURIComponent(stateJson);
+    const stateBase64 = btoa(stateJson);
     
-    // Crear URL con el estado comprimido
-    // Usar la URL relativa para evitar rutas de archivo completas
-    const currentUrl = window.location.href.split('?')[0];
-    // Verificar si la URL comienza con 'file://' y reemplazarla con una URL web base si es necesario
-    const baseUrl = currentUrl.startsWith('file://') 
-        ? 'https://fisicaaplicada.usc.es/ciclostermo/' // URL base ejemplo, debe ser ajustada
-        : currentUrl;
+    // Crear URL con el estado
+    const shareUrl = `${window.location.href.split('?')[0]}?state=${stateBase64}`;
     
-    const longShareUrl = `${baseUrl}?state=${compressedState}`;
-    
-    // Obtener traducciones para el diálogo
-    const currentLang = getCurrentLanguage();
-    const title = getTranslation("share_dialog_title", currentLang);
-    const description = getTranslation("share_dialog_description", currentLang);
-    const copyButtonText = getTranslation("copy_button", currentLang);
-    const copiedMessage = getTranslation("copied_message", currentLang);
-    const closeButtonText = getTranslation("close_button", currentLang);
-    const shareOnText = getTranslation("share_on", currentLang);
-    const processingText = getTranslation("processing", currentLang) || "Procesando...";
-    
-    // Mostrar diálogo inicial con mensaje de procesamiento
-    const loadingDialogHtml = `
+    // Mostrar diálogo con la URL para compartir
+    const dialogHtml = `
         <div class="share-dialog">
-            <h3>${title}</h3>
-            <p>${processingText}</p>
-            <div class="loading-spinner"></div>
+            <h3>Compartir Ejercicio</h3>
+            <p>Copia el siguiente enlace para compartir el ejercicio en su estado actual:</p>
+            <div class="share-url-container">
+                <input type="text" id="share-url" value="${shareUrl}" readonly>
+                <button id="copy-button">Copiar</button>
+            </div>
+            <button id="close-dialog">Cerrar</button>
         </div>
     `;
     
     // Crear elemento para el diálogo
     const dialogOverlay = document.createElement('div');
     dialogOverlay.className = 'dialog-overlay';
-    dialogOverlay.innerHTML = loadingDialogHtml;
+    dialogOverlay.innerHTML = dialogHtml;
     document.body.appendChild(dialogOverlay);
     
-    // Crear HTML para el diálogo con URL
-    const createDialogHtml = (shareUrl) => {
-        const displayUrl = shareUrl.length > 60 ? shareUrl.substring(0, 57) + '...' : shareUrl;
-        
-        // Crear HTML para botones de redes sociales
-        const socialButtons = `
-            <div class="social-buttons">
-                <p>${shareOnText}:</p>
-                <div class="social-icons">
-                    <a href="mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(shareUrl)}" class="social-icon email-icon" title="${getTranslation("share_email", currentLang)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                    </a>
-                    <a href="https://api.whatsapp.com/send?text=${encodeURIComponent(title + ': ' + shareUrl)}" target="_blank" class="social-icon whatsapp-icon" title="${getTranslation("share_whatsapp", currentLang)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    </a>
-                    <a href="https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(title)}" target="_blank" class="social-icon telegram-icon" title="${getTranslation("share_telegram", currentLang)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                    </a>
-                    <a href="https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(shareUrl)}" target="_blank" class="social-icon twitter-icon" title="${getTranslation("share_twitter", currentLang)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
-                    </a>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}" target="_blank" class="social-icon facebook-icon" title="${getTranslation("share_facebook", currentLang)}">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    </a>
-                </div>
-            </div>
-        `;
-        
-        return `
-            <div class="share-dialog">
-                <h3>${title}</h3>
-                <p>${description}</p>
-                <div class="share-url-container">
-                    <input type="text" id="share-url" value="${shareUrl}" readonly title="${shareUrl}">
-                    <button id="copy-button">${copyButtonText}</button>
-                </div>
-                <p class="url-label">${displayUrl}</p>
-                ${socialButtons}
-                <button id="close-dialog">${closeButtonText}</button>
-            </div>
-        `;
-    };
+    // Configurar eventos de los botones
+    document.getElementById('copy-button').addEventListener('click', function() {
+        const shareUrlInput = document.getElementById('share-url');
+        shareUrlInput.select();
+        document.execCommand('copy');
+        this.textContent = '¡Copiado!';
+    });
     
-    // Intentar generar una URL corta automáticamente
-    fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longShareUrl)}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error al acortar la URL');
-            }
-            return response.text();
-        })
-        .then(shortUrl => {
-            // Actualizar el diálogo con la URL corta
-            dialogOverlay.innerHTML = createDialogHtml(shortUrl);
-            
-            // Configurar eventos de los botones
-            document.getElementById('copy-button').addEventListener('click', function() {
-                const shareUrlInput = document.getElementById('share-url');
-                shareUrlInput.select();
-                document.execCommand('copy');
-                this.textContent = copiedMessage;
-            });
-            
-            document.getElementById('close-dialog').addEventListener('click', function() {
-                document.body.removeChild(dialogOverlay);
-            });
-            
-            // Auto-seleccionar la URL para facilitar la copia
-            document.getElementById('share-url').select();
-        })
-        .catch(error => {
-            console.error('Error al acortar la URL:', error);
-            // Mostrar el diálogo con la URL larga en caso de error
-            dialogOverlay.innerHTML = createDialogHtml(longShareUrl);
-            
-            // Configurar eventos de los botones
-            document.getElementById('copy-button').addEventListener('click', function() {
-                const shareUrlInput = document.getElementById('share-url');
-                shareUrlInput.select();
-                document.execCommand('copy');
-                this.textContent = copiedMessage;
-            });
-            
-            document.getElementById('close-dialog').addEventListener('click', function() {
-                document.body.removeChild(dialogOverlay);
-            });
-        });
+    document.getElementById('close-dialog').addEventListener('click', function() {
+        document.body.removeChild(dialogOverlay);
+    });
 }
 
 /**
@@ -3284,191 +3077,36 @@ function loadSharedExercise() {
     
     if (stateParam) {
         try {
-            console.log("Intentando cargar estado compartido. Longitud del estado:", stateParam.length);
-            
-            // Inicializar variable para almacenar estado
-            let exerciseState = null;
-            let decodingMethod = '';
-            
-            // Probar diferentes métodos de decodificación 
-            // (esto nos permite compatibilidad con diferentes versiones de enlaces)
-            try {
-                // Método 1: Intentar descomprimir con LZString (nuevo formato)
-                const stateJson = LZString.decompressFromEncodedURIComponent(stateParam);
-                if (stateJson) {
-                    exerciseState = JSON.parse(stateJson);
-                    decodingMethod = 'LZString';
-                    console.log("Estado decodificado exitosamente con LZString");
-                }
-            } catch (e) {
-                console.warn("No se pudo decodificar con LZString:", e);
-            }
-            
-            // Si el primer método falló, intentar con base64
-            if (!exerciseState) {
-                try {
-                    // Método 2: Intentar con base64 (método antiguo)
-                    const stateJson = atob(stateParam);
-                    exerciseState = JSON.parse(stateJson);
-                    decodingMethod = 'base64';
-                    console.log("Estado decodificado exitosamente con base64 (atob)");
-                } catch (e) {
-                    console.warn("No se pudo decodificar con base64:", e);
-                }
-            }
-            
-            // Si aún no tenemos un estado, intentar decodificar directamente como JSON
-            if (!exerciseState) {
-                try {
-                    // Método 3: Intentar decodificar directamente como JSON (por si acaso)
-                    exerciseState = JSON.parse(decodeURIComponent(stateParam));
-                    decodingMethod = 'directJSON';
-                    console.log("Estado decodificado exitosamente como JSON directo");
-                } catch (e) {
-                    console.warn("No se pudo decodificar directamente como JSON:", e);
-                }
-            }
-            
-            // Si no se pudo decodificar el estado con ningún método, lanzar error
-            if (!exerciseState) {
-                throw new Error("No se pudo decodificar el estado con ningún método");
-            }
-            
-            console.log("Estado cargado con éxito usando método:", decodingMethod);
-            console.log("Estado completo:", JSON.parse(JSON.stringify(exerciseState)));
-            
-            // Validar que exerciseState tiene la estructura esperada
-            if (!exerciseState.cycleType || !exerciseState.cycleData) {
-                throw new Error("El estado decodificado no tiene la estructura esperada");
-            }
+            // Decodificar el estado
+            const stateJson = atob(stateParam);
+            const exerciseState = JSON.parse(stateJson);
             
             // Restaurar el tipo de ciclo
             document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
             
             // Restaurar los datos del ciclo
             cycleData = exerciseState.cycleData;
-            numMoles = exerciseState.numMoles || 1; // Valor por defecto si no existe
-            
-            // Restaurar puntos y procesos si existen en el estado compartido (nuevos enlaces)
-            if (exerciseState.points && exerciseState.points.length > 0 && exerciseState.processes) {
-                console.log("Restaurando puntos y procesos específicos del ciclo compartido");
-                points = exerciseState.points.map(p => ({p: p.p, v: p.v})); // Copia limpia
-                processes = exerciseState.processes.slice(); // Copia limpia
-                // No es necesario volver a generar el ciclo, usamos los puntos exactos
-                needToGenerateNewCycle = false;
-            } else {
-                console.log("El enlace compartido no contiene puntos y procesos específicos, se usará cycleData para aproximar");
-                // Para compatibilidad con enlaces antiguos, intentar regenerar el ciclo
-                needToGenerateNewCycle = false;
-                // En este caso, no generamos un nuevo ciclo, solo dibujamos el gráfico con los datos existentes
-            }
+            numMoles = exerciseState.numMoles;
             
             // Dibujar el ciclo y mostrar datos
             drawGraph();
             displayProblemData();
             setupTable();
             
-            // Restaurar las respuestas del usuario y estados de validación si existen
+            // Restaurar las respuestas del usuario si existen
             if (exerciseState.userAnswers) {
-                console.log("Restaurando respuestas del usuario");
-                
-                // Procesar cada entrada guardada
                 for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
-                    // Saltar entradas de validación (terminan en _validation)
-                    if (inputId.endsWith('_validation')) continue;
-                    
                     const inputElement = document.getElementById(inputId);
                     if (inputElement && value) {
                         inputElement.value = value;
-                        
-                        // Verificar si hay información de validación para este input
-                        const validationKey = inputId + '_validation';
-                        if (exerciseState.userAnswers[validationKey]) {
-                            const validationState = exerciseState.userAnswers[validationKey];
-                            
-                            // Aplicar clase de validación
-                            if (validationState === 'correct') {
-                                inputElement.classList.add('correct');
-                            } else if (validationState === 'incorrect') {
-                                inputElement.classList.add('incorrect');
-                            }
-                        }
                     }
                 }
-                
-                // Actualizar los totales en tiempo real
-                updateRealTimeTotals();
             }
             
-            // Restaurar el estado de gamificación si existe
-            if (exerciseState.validatedCells) {
-                gameState.validatedCells = new Set(exerciseState.validatedCells);
-            }
-            
-            if (typeof exerciseState.points === 'number') {
-                gameState.points = exerciseState.points;
-            }
-            
-            if (typeof exerciseState.energyLevel === 'number') {
-                gameState.energy = exerciseState.energyLevel;
-            }
-            
-            if (typeof exerciseState.currentDifficulty === 'number') {
-                gameState.currentDifficulty = exerciseState.currentDifficulty;
-                gamificationSystem.updateDifficultyDisplay(exerciseState.currentDifficulty);
-            }
-            
-            // Actualizar visualización de puntos
-            document.getElementById('total-points').textContent = gameState.points;
-            
-            // Actualizar barra de energía
-            const energyBar = document.getElementById('energy-bar');
-            if (energyBar) {
-                energyBar.style.width = `${gameState.energy}%`;
-                
-                // Actualizar clase de la barra según el nivel de energía
-                energyBar.classList.remove('positive', 'negative');
-                if (gameState.energy > 50) {
-                    energyBar.classList.add('positive');
-                } else if (gameState.energy < 50) {
-                    energyBar.classList.add('negative');
-                }
-            }
-            
-            // Mostrar notificación de carga exitosa
-            const currentLang = getCurrentLanguage();
-            const notificationElement = document.getElementById('result-notification');
-            
-            if (notificationElement) {
-                notificationElement.textContent = getTranslation("exercise_loaded", currentLang) || "Ejercicio cargado con éxito";
-                notificationElement.className = 'result-notification correct show';
-                
-                setTimeout(() => {
-                    notificationElement.className = 'result-notification';
-                }, 2000);
-            }
+            console.log("Ejercicio compartido cargado con éxito");
         } catch (error) {
-            console.error('Error detallado al cargar el ejercicio compartido:', error);
-            
-            // Generar un nuevo ciclo para que el usuario pueda trabajar
-            generateCycle();
-            
-            // Mostrar notificación de error
-            const currentLang = getCurrentLanguage();
-            const errorMessage = getTranslation("exercise_load_error", currentLang) || "Error al cargar el ejercicio";
-            const notificationElement = document.getElementById('result-notification');
-            
-            if (notificationElement) {
-                notificationElement.textContent = errorMessage;
-                notificationElement.className = 'result-notification incorrect show';
-                
-                setTimeout(() => {
-                    notificationElement.className = 'result-notification';
-                }, 3000);
-            }
-            
-            // Mostrar alerta con más detalles
-            alert(errorMessage + ". " + (getTranslation("link_corrupted", currentLang) || "El enlace podría estar corrupto."));
+            console.error("Error al cargar el ejercicio compartido:", error);
+            alert("Error al cargar el ejercicio compartido. El enlace podría estar corrupto.");
         }
     }
 }
