@@ -1071,139 +1071,406 @@ function calculateProcessError(point, referencePoint, processType) {
  * Genera un ciclo predefinido basado en el tipo seleccionado
  */
 function generatePredefinedCycle(selectedCycle) {
-    const cycle = PREDEFINED_CYCLES[selectedCycle];
-    const processTypes = [...cycle.processes]; // Copia los tipos de procesos
-    const numProcesses = processTypes.length;
+    console.log(`Generando ciclo predefinido: ${selectedCycle}`);
     
-    console.log(`Ciclo seleccionado: ${cycle.name}`);
-    console.log(`Número de procesos: ${numProcesses}`);
-    console.log("Tipos de procesos:", processTypes.map(p => PROCESS_TYPES[p]));
+    // Obtener definición del ciclo
+    const cycleDefinition = PREDEFINED_CYCLES[selectedCycle];
+    if (!cycleDefinition) {
+        console.error(`Tipo de ciclo no válido: ${selectedCycle}`);
+        return generateSimpleCycle();
+    }
     
-    // Generar el primer punto
-    const p1 = 100 + Math.random() * 100; // Presión entre 100-200 kPa
-    const v1 = 30 + Math.random() * 40;   // Volumen entre 30-70 L
-    const t1 = (p1 * v1) / (numMoles * R);
+    const cycleProcesses = cycleDefinition.processes;
+    console.log(`Secuencia de procesos: ${cycleProcesses.map(p => PROCESS_TYPES[p]).join(', ')}`);
     
-    // Crear el primer punto con todos sus atributos
-    const firstPoint = { 
-        p: p1, 
-        v: v1, 
-        t: t1,
-        index: 0
+    // Limpiar datos de puntos existentes
+    points = [];
+    processes = cycleProcesses.slice(); // Guardar los procesos para uso posterior
+    
+    // Determinamos la temperatura ambiente (entre 290K y 310K)
+    const ambientTemp = getRandomValue(290, 310);
+    
+    // Parámetros para el punto inicial
+    let p0 = getRandomValue(90, 120); // Presión inicial entre 90 y 120 kPa
+    let v0 = getRandomValue(5, 15);   // Volumen inicial entre 5 y 15 L
+    
+    // Ajustar para tipos específicos de ciclo
+    if (selectedCycle === 'carnot') {
+        // Para Carnot, queremos asegurar temperaturas más extremas
+        p0 = getRandomValue(80, 100);
+        v0 = getRandomValue(10, 20);
+    } else if (selectedCycle === 'otto') {
+        // Para Otto, necesitamos compresiones más fuertes
+        p0 = getRandomValue(90, 110);
+        v0 = getRandomValue(15, 25);
+    } else if (selectedCycle === 'diesel') {
+        // Para Diesel, presiones más altas
+        p0 = getRandomValue(100, 120);
+        v0 = getRandomValue(10, 15);
+    } else if (selectedCycle === 'rankine') {
+        // Para Rankine, volúmenes iniciales menores
+        p0 = getRandomValue(80, 90);
+        v0 = getRandomValue(4, 8);
+    } else if (selectedCycle === 'brayton') {
+        // Para Brayton, presiones más bajas
+        p0 = getRandomValue(70, 90);
+        v0 = getRandomValue(10, 18);
+    }
+    
+    // Punto inicial
+    const initialPoint = {
+        p: p0,
+        v: v0,
+        processType: cycleProcesses[0]
     };
     
-    // Iniciar array de puntos con el primer punto
-    const points = [firstPoint];
+    // Generar datos del ciclo
+    const cycleData = [];
+    let currentPoint = initialPoint;
     
-    // Generar los puntos siguientes de manera secuencial
-    let currentPoint = firstPoint;
+    // Agregar el punto inicial a los puntos del ciclo
+    points.push({p: currentPoint.p, v: currentPoint.v});
     
-    for (let i = 0; i < numProcesses - 1; i++) {
-        const processType = processTypes[i];
+    // Generar cada punto del ciclo
+    for (let i = 0; i < cycleProcesses.length; i++) {
+        const processType = cycleProcesses[i];
         
-        // Si estamos en el penúltimo punto, necesitamos asegurar que
-        // el último proceso pueda cerrar el ciclo
-        if (i === numProcesses - 2) {
-            // Generar un punto que permita cerrar el ciclo con el proceso final
-            const finalProcessType = processTypes[numProcesses - 1];
+        // Añadir punto actual al ciclo con información del proceso
+        cycleData.push({
+            p: currentPoint.p,
+            v: currentPoint.v,
+            processType: processType,
+            nextIndex: (i + 1) % cycleProcesses.length
+        });
+        
+        // Si no es el último punto, generar el siguiente
+        if (i < cycleProcesses.length - 1) {
+            const nextProcessType = cycleProcesses[i + 1];
+            const nextPoint = generateNextPoint(currentPoint, processType, nextProcessType, selectedCycle, i);
+            currentPoint = nextPoint;
             
-            // Generar puntos candidatos hasta encontrar uno viable
-            let nextPoint = null;
-            let attempts = 0;
-            const maxAttempts = 50;
-            
-            while (attempts < maxAttempts) {
-                // Generar un candidato usando el proceso actual
-                const candidate = generatePointByProcessType(currentPoint, processType);
-                
-                // Verificar si este punto puede cerrar el ciclo con el primer punto
-                if (isProcessValid(candidate, firstPoint, finalProcessType)) {
-                    nextPoint = candidate;
-                    break;
+            // Guardar el punto en el array de puntos
+            points.push({p: currentPoint.p, v: currentPoint.v});
+        }
+    }
+    
+    // Ajustar el último punto para que cierre el ciclo y vuelva al inicial
+    const lastIndex = cycleProcesses.length - 1;
+    const lastProcessType = cycleProcesses[lastIndex];
+    const firstProcessType = cycleProcesses[0];
+    
+    // Usar función especializada para el último punto
+    const adjustedLastPoint = adjustLastPoint(
+        cycleData[lastIndex],
+        initialPoint,
+        lastProcessType,
+        firstProcessType,
+        selectedCycle
+    );
+    
+    // Actualizar el último punto en cycleData
+    cycleData[lastIndex].p = adjustedLastPoint.p;
+    cycleData[lastIndex].v = adjustedLastPoint.v;
+    
+    // Actualizar también el último punto en el array de points
+    if (points.length === cycleProcesses.length) {
+        points[lastIndex] = {p: adjustedLastPoint.p, v: adjustedLastPoint.v};
+    }
+    
+    console.log(`Ciclo ${selectedCycle} generado con ${cycleData.length} puntos:`, JSON.parse(JSON.stringify(cycleData)));
+    console.log("Puntos guardados:", JSON.parse(JSON.stringify(points)));
+    console.log("Procesos guardados:", JSON.parse(JSON.stringify(processes)));
+    
+    return cycleData;
+    
+    // Función interna para generar el siguiente punto según el tipo de ciclo y procesos
+    function generateNextPoint(currentPoint, currentProcessType, nextProcessType, cycleType, index) {
+        // Parámetros base para generar el siguiente punto
+        let multiplier = 0;
+        let parameter = 0;
+        
+        // Ajustar parámetros según el tipo de ciclo
+        switch (cycleType) {
+            case 'carnot':
+                if (currentProcessType === 2) { // Isotérmico
+                    multiplier = getRandomValue(1.8, 2.5);
+                } else if (currentProcessType === 0) { // Adiabático
+                    multiplier = getRandomValue(0.6, 0.8);
                 }
+                break;
                 
-                attempts++;
-            }
-            
-            // Si no se encontró un punto viable después de los intentos máximos, regenerar el ciclo
-            if (nextPoint === null) {
-                console.log("No se pudo encontrar un punto viable para cerrar el ciclo. Regenerando...");
-                return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
-            }
-            
-            // Asignar índice y agregar al array
-            nextPoint.index = i + 1;
-            points.push(nextPoint);
-            currentPoint = nextPoint;
-        } 
-        else {
-            // Para los demás puntos, simplemente generamos según el proceso
-            const nextPoint = generatePointByProcessType(currentPoint, processType);
-            nextPoint.index = i + 1;
-            points.push(nextPoint);
-            currentPoint = nextPoint;
+            case 'otto':
+                if (currentProcessType === 1) { // Isocórico
+                    multiplier = getRandomValue(2.0, 3.0);
+                } else if (currentProcessType === 0) { // Adiabático
+                    multiplier = index === 0 ? getRandomValue(0.3, 0.5) : getRandomValue(2.5, 3.5);
+                }
+                break;
+                
+            case 'diesel':
+                if (currentProcessType === 0) { // Adiabático
+                    multiplier = index === 0 ? getRandomValue(0.25, 0.4) : getRandomValue(3.0, 4.0);
+                } else if (currentProcessType === 3) { // Isobárico
+                    multiplier = getRandomValue(1.5, 2.0);
+                } else if (currentProcessType === 1) { // Isocórico
+                    multiplier = getRandomValue(0.3, 0.45);
+                }
+                break;
+                
+            case 'rankine':
+                if (currentProcessType === 3) { // Isobárico
+                    multiplier = getRandomValue(1.6, 2.2);
+                } else if (currentProcessType === 0) { // Adiabático
+                    multiplier = getRandomValue(0.3, 0.5);
+                } else if (currentProcessType === 1) { // Isocórico
+                    multiplier = getRandomValue(0.6, 0.8);
+                } else if (currentProcessType === 2) { // Isotérmico
+                    multiplier = getRandomValue(3.0, 4.0);
+                }
+                break;
+                
+            case 'brayton':
+                if (currentProcessType === 0) { // Adiabático
+                    multiplier = index === 0 ? getRandomValue(3.0, 4.0) : getRandomValue(0.25, 0.35);
+                } else if (currentProcessType === 3) { // Isobárico
+                    multiplier = index === 1 ? getRandomValue(1.8, 2.3) : getRandomValue(0.5, 0.7);
+                }
+                break;
+                
+            default:
+                multiplier = getRandomValue(1.5, 2.5);
         }
-    }
-    
-    // Asignar los tipos de procesos y los índices de los siguientes puntos
-    for (let i = 0; i < points.length; i++) {
-        points[i].processType = processTypes[i];
-        points[i].nextIndex = (i + 1) % points.length;
-    }
-    
-    // Verificación final: comprobar que todos los procesos son físicamente viables
-    let allProcessesValid = true;
-    
-    for (let i = 0; i < points.length; i++) {
-        const point = points[i];
-        const nextIndex = point.nextIndex;
-        const nextPoint = points[nextIndex];
-        const processType = point.processType;
         
-        if (!isProcessValid(point, nextPoint, processType)) {
-            console.log(`Proceso inválido detectado entre puntos ${i+1} y ${nextIndex+1}. Regenerando ciclo...`);
-            allProcessesValid = false;
-            break;
+        // Generar el siguiente punto según el tipo de proceso
+        let nextPoint = { p: 0, v: 0 };
+        
+        switch (currentProcessType) {
+            case 0: // Adiabático: PV^γ = constante
+                if (index === 0 && cycleType === 'otto') {
+                    // Compresión adiabática en ciclo Otto (1→2)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                } else if (index === 2 && cycleType === 'otto') {
+                    // Expansión adiabática en ciclo Otto (3→4)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                } else if (cycleType === 'diesel' && index === 0) {
+                    // Compresión adiabática en ciclo Diesel (1→2)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                } else if (cycleType === 'diesel' && index === 2) {
+                    // Expansión adiabática en ciclo Diesel (3→4)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                } else if (cycleType === 'brayton') {
+                    if (index === 0) {
+                        // Compresión adiabática en ciclo Brayton (1→2)
+                        nextPoint.p = currentPoint.p * multiplier;
+                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                        nextPoint.v = Math.pow(k / nextPoint.p, 1 / GAMMA);
+                    } else if (index === 2) {
+                        // Expansión adiabática en ciclo Brayton (3→4)
+                        nextPoint.p = currentPoint.p * multiplier;
+                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                        nextPoint.v = Math.pow(k / nextPoint.p, 1 / GAMMA);
+                    }
+                } else if (cycleType === 'carnot') {
+                    if (index === 1) {
+                        // Expansión adiabática en ciclo Carnot (2→3)
+                        nextPoint.v = currentPoint.v * multiplier;
+                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                        nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                    } else if (index === 3) {
+                        // Compresión adiabática en ciclo Carnot (4→1)
+                        nextPoint.v = currentPoint.v * multiplier;
+                        const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                        nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                    }
+                } else {
+                    // Proceso adiabático genérico
+                    nextPoint.v = currentPoint.v * multiplier;
+                    const k = currentPoint.p * Math.pow(currentPoint.v, GAMMA);
+                    nextPoint.p = k / Math.pow(nextPoint.v, GAMMA);
+                }
+                break;
+                
+            case 1: // Isocórico: V constante
+                nextPoint.v = currentPoint.v;
+                if (cycleType === 'otto' && index === 1) {
+                    // Adición de calor a volumen constante en ciclo Otto (2→3)
+                    nextPoint.p = currentPoint.p * multiplier;
+                } else if (cycleType === 'otto' && index === 3) {
+                    // Rechazo de calor a volumen constante en ciclo Otto (4→1)
+                    nextPoint.p = currentPoint.p * multiplier;
+                } else if (cycleType === 'diesel' && index === 3) {
+                    // Rechazo de calor a volumen constante en ciclo Diesel (4→1)
+                    nextPoint.p = currentPoint.p * multiplier;
+                } else {
+                    // Proceso isocórico genérico
+                    nextPoint.p = currentPoint.p * multiplier;
+                }
+                break;
+                
+            case 2: // Isotérmico: PV = constante
+                if (cycleType === 'carnot' && index === 0) {
+                    // Expansión isotérmica en ciclo Carnot (1→2)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
+                } else if (cycleType === 'carnot' && index === 2) {
+                    // Compresión isotérmica en ciclo Carnot (3→4)
+                    nextPoint.v = currentPoint.v * multiplier;
+                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
+                } else {
+                    // Proceso isotérmico genérico
+                    nextPoint.v = currentPoint.v * multiplier;
+                    nextPoint.p = currentPoint.p * currentPoint.v / nextPoint.v;
+                }
+                break;
+                
+            case 3: // Isobárico: P constante
+                nextPoint.p = currentPoint.p;
+                if (cycleType === 'diesel' && index === 1) {
+                    // Adición de calor a presión constante en ciclo Diesel (2→3)
+                    nextPoint.v = currentPoint.v * multiplier;
+                } else if (cycleType === 'brayton' && index === 1) {
+                    // Adición de calor a presión constante en ciclo Brayton (2→3)
+                    nextPoint.v = currentPoint.v * multiplier;
+                } else if (cycleType === 'brayton' && index === 3) {
+                    // Rechazo de calor a presión constante en ciclo Brayton (4→1)
+                    nextPoint.v = currentPoint.v * multiplier;
+                } else {
+                    // Proceso isobárico genérico
+                    nextPoint.v = currentPoint.v * multiplier;
+                }
+                break;
+                
+            case 4: // Lineal: P = mV + b
+                // Para proceso lineal se usan parámetros específicos
+                parameter = getRandomValue(0.5, 1.5);
+                const slope = (currentPoint.p - parameter * currentPoint.v) / 
+                              (currentPoint.v * (multiplier - 1));
+                
+                nextPoint.v = currentPoint.v * multiplier;
+                nextPoint.p = slope * (nextPoint.v - currentPoint.v) + currentPoint.p;
+                break;
+                
+            default:
+                console.error(`Tipo de proceso no válido: ${currentProcessType}`);
+                nextPoint = { 
+                    p: currentPoint.p * getRandomValue(0.8, 1.2), 
+                    v: currentPoint.v * getRandomValue(0.8, 1.2) 
+                };
         }
+        
+        return nextPoint;
     }
     
-    if (!allProcessesValid) {
-        return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
-    }
-    
-    // Actualizar el array global de datos del ciclo
-    cycleData = points;
-    
-    // Verificar y mostrar información detallada sobre los puntos
-    for (let i = 0; i < cycleData.length; i++) {
-        const point = cycleData[i];
-        const nextIndex = point.nextIndex;
-        const nextPoint = cycleData[nextIndex];
-        const processType = point.processType;
+    // Función interna para ajustar el último punto y cerrar correctamente el ciclo
+    function adjustLastPoint(lastPoint, firstPoint, lastProcessType, firstProcessType, cycleType) {
+        // Crear copia para no modificar el original directamente
+        const adjustedPoint = { ...lastPoint };
         
-        console.log(`Punto ${i+1}: P=${point.p.toFixed(2)} kPa, V=${point.v.toFixed(2)} L`);
-        console.log(`  → Proceso ${PROCESS_TYPES[processType]} a Punto ${nextIndex+1}`);
-        
-        // Verificar que el proceso cumple las leyes físicas
-        if (processType === 0) { // Adiabático
-            const k1 = point.p * Math.pow(point.v, GAMMA);
-            const k2 = nextPoint.p * Math.pow(nextPoint.v, GAMMA);
-            console.log(`  → Validación Adiabático: k1=${k1.toFixed(2)}, k2=${k2.toFixed(2)}, error=${(Math.abs(k1-k2)/k1*100).toFixed(6)}%`);
-        } else if (processType === 1) { // Isocórico
-            console.log(`  → Validación Isocórico: v1=${point.v.toFixed(2)}, v2=${nextPoint.v.toFixed(2)}, error=${(Math.abs(point.v-nextPoint.v)/point.v*100).toFixed(6)}%`);
-        } else if (processType === 2) { // Isotérmico
-            const pv1 = point.p * point.v;
-            const pv2 = nextPoint.p * nextPoint.v;
-            console.log(`  → Validación Isotérmico: pv1=${pv1.toFixed(2)}, pv2=${pv2.toFixed(2)}, error=${(Math.abs(pv1-pv2)/pv1*100).toFixed(6)}%`);
-        } else if (processType === 3) { // Isobárico
-            console.log(`  → Validación Isobárico: p1=${point.p.toFixed(2)}, p2=${nextPoint.p.toFixed(2)}, error=${(Math.abs(point.p-nextPoint.p)/point.p*100).toFixed(6)}%`);
+        switch (lastProcessType) {
+            case 0: // Adiabático: PV^γ = constante
+                // Para proceso adiabático, mantenemos PV^γ constante
+                const k = adjustedPoint.p * Math.pow(adjustedPoint.v, GAMMA);
+                
+                if (firstProcessType === 1) { // Siguiente proceso isocórico
+                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
+                    adjustedPoint.v = firstPoint.v;
+                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
+                } else if (firstProcessType === 3) { // Siguiente proceso isobárico
+                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
+                    adjustedPoint.p = firstPoint.p;
+                    adjustedPoint.v = Math.pow(k / adjustedPoint.p, 1 / GAMMA);
+                } else if (firstProcessType === 2) { // Siguiente proceso isotérmico
+                    // Si el siguiente proceso es isotérmico, ajustamos para que PV sea igual
+                    // Aquí necesitamos resolver un sistema de ecuaciones
+                    // PV^γ = k y PV = PV (del primer punto)
+                    const c = firstPoint.p * firstPoint.v; // PV del primer punto
+                    adjustedPoint.v = Math.pow(c / k, 1 / (1 - GAMMA));
+                    adjustedPoint.p = c / adjustedPoint.v;
+                } else {
+                    // En otros casos, intentamos mantener PV^γ y ajustar para cerrar el ciclo
+                    adjustedPoint.v = firstPoint.v;
+                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
+                }
+                break;
+                
+            case 1: // Isocórico: V constante
+                // Para proceso isocórico, mantenemos V constante
+                adjustedPoint.v = adjustedPoint.v;
+                
+                if (firstProcessType === 3) { // Siguiente proceso isobárico
+                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
+                    adjustedPoint.p = firstPoint.p;
+                } else if (firstProcessType === 0) { // Siguiente proceso adiabático
+                    // Ajustar P para que el siguiente proceso adiabático llegue al primer punto
+                    const k = firstPoint.p * Math.pow(firstPoint.v, GAMMA);
+                    adjustedPoint.p = k / Math.pow(adjustedPoint.v, GAMMA);
+                } else {
+                    // En otros casos, ajustamos P para que el ciclo cierre
+                    adjustedPoint.p = firstPoint.p;
+                }
+                break;
+                
+            case 2: // Isotérmico: PV = constante
+                // Para proceso isotérmico, mantenemos PV constante
+                const c = adjustedPoint.p * adjustedPoint.v;
+                
+                if (firstProcessType === 1) { // Siguiente proceso isocórico
+                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
+                    adjustedPoint.v = firstPoint.v;
+                    adjustedPoint.p = c / adjustedPoint.v;
+                } else if (firstProcessType === 3) { // Siguiente proceso isobárico
+                    // Si el siguiente proceso es isobárico, ajustamos P al del primer punto
+                    adjustedPoint.p = firstPoint.p;
+                    adjustedPoint.v = c / adjustedPoint.p;
+                } else {
+                    // En otros casos, ajustamos para que el ciclo cierre
+                    adjustedPoint.v = firstPoint.v;
+                    adjustedPoint.p = c / adjustedPoint.v;
+                }
+                break;
+                
+            case 3: // Isobárico: P constante
+                // Para proceso isobárico, mantenemos P constante
+                adjustedPoint.p = adjustedPoint.p;
+                
+                if (firstProcessType === 1) { // Siguiente proceso isocórico
+                    // Si el siguiente proceso es isocórico, ajustamos V al del primer punto
+                    adjustedPoint.v = firstPoint.v;
+                } else if (firstProcessType === 0) { // Siguiente proceso adiabático
+                    // Ajustar V para que el siguiente proceso adiabático llegue al primer punto
+                    const k = firstPoint.p * Math.pow(firstPoint.v, GAMMA);
+                    adjustedPoint.v = Math.pow(k / adjustedPoint.p, 1 / GAMMA);
+                } else {
+                    // En otros casos, ajustamos V para que el ciclo cierre
+                    adjustedPoint.v = firstPoint.v;
+                }
+                break;
+                
+            case 4: // Lineal: P = mV + b
+                // Para un proceso lineal, generalmente hay flexibilidad
+                // Podemos ajustar directamente para coincidir con el primer punto
+                adjustedPoint.p = firstPoint.p;
+                adjustedPoint.v = firstPoint.v;
+                break;
+                
+            default:
+                console.error(`Tipo de proceso no válido para ajustar último punto: ${lastProcessType}`);
         }
+        
+        // Hacer un pequeño ajuste para asegurar que cierre exactamente igual
+        adjustedPoint.p = firstPoint.p;
+        adjustedPoint.v = firstPoint.v;
+        
+        return adjustedPoint;
     }
-    
-    console.log("Ciclo predefinido generado con éxito:", cycleData);
-    
-    // Retornar los puntos generados
-    return points;
 }
 
 /**
@@ -2850,28 +3117,34 @@ function shareExercise() {
         cycleData: cycleData,
         numMoles: numMoles,
         // Guardar todos los puntos exactos del ciclo
-        points: points,
+        points: points.map(p => ({p: p.p, v: p.v})), // Hacemos una copia limpia
         // Guardar los procesos para cada segmento
-        processes: processes,
+        processes: processes.slice(), // Hacemos una copia del array
         // Recopilar las respuestas del usuario si hay alguna
-        userAnswers: {}
+        userAnswers: {},
+        // Guardar información de validación
+        validatedCells: Array.from(gameState.validatedCells),
+        points: gameState.points,
+        energyLevel: gameState.energy,
+        currentDifficulty: gameState.currentDifficulty
     };
     
-    // Capturar las respuestas que el usuario haya introducido hasta el momento
-    for (let i = 0; i < cycleData.length; i++) {
-        exerciseState.userAnswers[`q-${i}`] = document.getElementById(`q-${i}`).value;
-        exerciseState.userAnswers[`w-${i}`] = document.getElementById(`w-${i}`).value;
-        exerciseState.userAnswers[`du-${i}`] = document.getElementById(`du-${i}`).value;
-        exerciseState.userAnswers[`dh-${i}`] = document.getElementById(`dh-${i}`).value;
-        exerciseState.userAnswers[`ds-${i}`] = document.getElementById(`ds-${i}`).value;
-    }
+    console.log("Estado a compartir:", JSON.parse(JSON.stringify(exerciseState)));
     
-    // Incluir también los totales
-    exerciseState.userAnswers[`q-total`] = document.getElementById(`q-total`).value;
-    exerciseState.userAnswers[`w-total`] = document.getElementById(`w-total`).value;
-    exerciseState.userAnswers[`du-total`] = document.getElementById(`du-total`).value;
-    exerciseState.userAnswers[`dh-total`] = document.getElementById(`dh-total`).value;
-    exerciseState.userAnswers[`ds-total`] = document.getElementById(`ds-total`).value;
+    // Capturar todas las respuestas del usuario
+    const inputElements = document.querySelectorAll('#thermo-table input');
+    inputElements.forEach(input => {
+        if (input.id && input.value) {
+            exerciseState.userAnswers[input.id] = input.value;
+            
+            // También guardar el estado de validación (correcto/incorrecto)
+            if (input.classList.contains('correct')) {
+                exerciseState.userAnswers[input.id + '_validation'] = 'correct';
+            } else if (input.classList.contains('incorrect')) {
+                exerciseState.userAnswers[input.id + '_validation'] = 'incorrect';
+            }
+        }
+    });
     
     // Comprimir los datos para hacer la URL más corta
     const stateJson = JSON.stringify(exerciseState);
@@ -2895,7 +3168,6 @@ function shareExercise() {
     const copiedMessage = getTranslation("copied_message", currentLang);
     const closeButtonText = getTranslation("close_button", currentLang);
     const shareOnText = getTranslation("share_on", currentLang);
-    const shorteningMessage = getTranslation("shortening_url", currentLang) || "Acortando URL...";
     const processingText = getTranslation("processing", currentLang) || "Procesando...";
     
     // Mostrar diálogo inicial con mensaje de procesamiento
@@ -3063,6 +3335,7 @@ function loadSharedExercise() {
             }
             
             console.log("Estado cargado con éxito usando método:", decodingMethod);
+            console.log("Estado completo:", JSON.parse(JSON.stringify(exerciseState)));
             
             // Validar que exerciseState tiene la estructura esperada
             if (!exerciseState.cycleType || !exerciseState.cycleData) {
@@ -3077,10 +3350,10 @@ function loadSharedExercise() {
             numMoles = exerciseState.numMoles || 1; // Valor por defecto si no existe
             
             // Restaurar puntos y procesos si existen en el estado compartido (nuevos enlaces)
-            if (exerciseState.points && exerciseState.processes) {
+            if (exerciseState.points && exerciseState.points.length > 0 && exerciseState.processes) {
                 console.log("Restaurando puntos y procesos específicos del ciclo compartido");
-                points = exerciseState.points;
-                processes = exerciseState.processes;
+                points = exerciseState.points.map(p => ({p: p.p, v: p.v})); // Copia limpia
+                processes = exerciseState.processes.slice(); // Copia limpia
                 // No es necesario volver a generar el ciclo, usamos los puntos exactos
                 needToGenerateNewCycle = false;
             } else {
@@ -3095,16 +3368,71 @@ function loadSharedExercise() {
             displayProblemData();
             setupTable();
             
-            // Restaurar las respuestas del usuario si existen
+            // Restaurar las respuestas del usuario y estados de validación si existen
             if (exerciseState.userAnswers) {
+                console.log("Restaurando respuestas del usuario");
+                
+                // Procesar cada entrada guardada
                 for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
+                    // Saltar entradas de validación (terminan en _validation)
+                    if (inputId.endsWith('_validation')) continue;
+                    
                     const inputElement = document.getElementById(inputId);
                     if (inputElement && value) {
                         inputElement.value = value;
+                        
+                        // Verificar si hay información de validación para este input
+                        const validationKey = inputId + '_validation';
+                        if (exerciseState.userAnswers[validationKey]) {
+                            const validationState = exerciseState.userAnswers[validationKey];
+                            
+                            // Aplicar clase de validación
+                            if (validationState === 'correct') {
+                                inputElement.classList.add('correct');
+                            } else if (validationState === 'incorrect') {
+                                inputElement.classList.add('incorrect');
+                            }
+                        }
                     }
                 }
+                
                 // Actualizar los totales en tiempo real
                 updateRealTimeTotals();
+            }
+            
+            // Restaurar el estado de gamificación si existe
+            if (exerciseState.validatedCells) {
+                gameState.validatedCells = new Set(exerciseState.validatedCells);
+            }
+            
+            if (typeof exerciseState.points === 'number') {
+                gameState.points = exerciseState.points;
+            }
+            
+            if (typeof exerciseState.energyLevel === 'number') {
+                gameState.energy = exerciseState.energyLevel;
+            }
+            
+            if (typeof exerciseState.currentDifficulty === 'number') {
+                gameState.currentDifficulty = exerciseState.currentDifficulty;
+                gamificationSystem.updateDifficultyDisplay(exerciseState.currentDifficulty);
+            }
+            
+            // Actualizar visualización de puntos
+            document.getElementById('total-points').textContent = gameState.points;
+            
+            // Actualizar barra de energía
+            const energyBar = document.getElementById('energy-bar');
+            if (energyBar) {
+                energyBar.style.width = `${gameState.energy}%`;
+                
+                // Actualizar clase de la barra según el nivel de energía
+                energyBar.classList.remove('positive', 'negative');
+                if (gameState.energy > 50) {
+                    energyBar.classList.add('positive');
+                } else if (gameState.energy < 50) {
+                    energyBar.classList.add('negative');
+                }
             }
             
             // Mostrar notificación de carga exitosa
