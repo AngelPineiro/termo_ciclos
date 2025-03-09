@@ -108,8 +108,10 @@ const gamificationSystem = {
     // Calcula los puntos a otorgar basado en la dificultad
     calculatePoints: function(difficultyLevel) {
         const basePoints = 10;
+        // Asegurar que difficultyLevel es un número entre 1 y 5
+        const level = Math.max(1, Math.min(5, parseInt(difficultyLevel) || 1));
         const multipliers = [1, 1.5, 2, 3, 4]; // Multiplicadores para niveles 1-5
-        return Math.round(basePoints * multipliers[difficultyLevel - 1]);
+        return Math.round(basePoints * multipliers[level - 1]);
     },
     
     // Añade puntos al jugador
@@ -128,9 +130,11 @@ const gamificationSystem = {
     
     // Actualiza los puntos del jugador (positivo para aciertos, negativo para errores)
     updatePoints: function(points) {
-        gameState.points += points;
-        // Eliminamos esta restricción para permitir puntos negativos
-        // if (gameState.points < 0) gameState.points = 0;
+        // Asegurar que points es un número
+        const pointsToAdd = parseInt(points) || 0;
+        
+        // Actualizar los puntos totales
+        gameState.points = (parseInt(gameState.points) || 0) + pointsToAdd;
         
         // Actualizar el display de puntos totales en la interfaz
         const pointsElement = document.getElementById('total-points');
@@ -236,8 +240,8 @@ const gamificationSystem = {
         if (savedState) {
             try {
                 const parsed = JSON.parse(savedState);
-                gameState.points = parsed.points || 0;
-                gameState.energy = parsed.energy || 50;
+                gameState.points = parseInt(parsed.points) || 0;
+                gameState.energy = parseInt(parsed.energy) || 50;
                 gameState.validatedCells = new Set(parsed.validatedCells || []);
                 
                 // Actualizar los puntos totales mostrados
@@ -257,6 +261,21 @@ const gamificationSystem = {
                 
             } catch (e) {
                 console.error('Error al cargar el estado del juego:', e);
+                // Inicializar valores por defecto si hay un error
+                gameState.points = 0;
+                gameState.energy = 50;
+                gameState.validatedCells = new Set();
+                
+                // Actualizar la interfaz con los valores por defecto
+                const pointsElement = document.getElementById('total-points');
+                if (pointsElement) {
+                    pointsElement.textContent = 0;
+                }
+                
+                const energyBar = document.getElementById('energy-bar');
+                if (energyBar) {
+                    energyBar.style.width = '50%';
+                }
             }
         }
     },
@@ -345,7 +364,35 @@ const gamificationSystem = {
     initialize: function() {
         this.loadGameState();
         this.initializeButtons();
+        
+        // Verificar si los puntos son un valor numérico válido, sino reiniciar
+        if (isNaN(gameState.points)) {
+            console.warn("Se detectó un valor no numérico en los puntos. Reiniciando sistema de gamificación.");
+            this.resetGameState();
+        }
+        
         this.updateEnergyBarColor(); // Asegurar que el color de la barra se inicializa correctamente
+    },
+    
+    // Reinicia el estado del juego a los valores por defecto
+    resetGameState: function() {
+        gameState.points = 0;
+        gameState.energy = 50;
+        gameState.validatedCells = new Set();
+        
+        // Actualizar la interfaz
+        const pointsElement = document.getElementById('total-points');
+        if (pointsElement) {
+            pointsElement.textContent = '0';
+        }
+        
+        const energyBar = document.getElementById('energy-bar');
+        if (energyBar) {
+            energyBar.style.width = '50%';
+        }
+        
+        // Guardar el estado reiniciado
+        this.saveGameState();
     }
 };
 
