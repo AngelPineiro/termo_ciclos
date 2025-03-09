@@ -177,6 +177,26 @@ const translations = {
         
         // Nueva clave para el tooltip del botón exportar progreso
         export_progress_tooltip: 'Debes completar todos los campos de la tabla para poder exportar tu progreso',
+        
+        // Diálogo de compartir
+        share_dialog_title: 'Compartir Ejercicio',
+        share_dialog_description: 'Copia el siguiente enlace o comparte directamente en redes sociales:',
+        copy_button: 'Copiar',
+        copied_message: '¡Copiado!',
+        close_button: 'Cerrar',
+        share_on: 'Compartir en',
+        share_email: 'Email',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'Acortar URL',
+        shortening_url: 'Acortando URL...',
+        shorten_error: 'Error al acortar URL',
+        
+        // Notificaciones de carga de ejercicio
+        exercise_loaded: 'Ejercicio cargado con éxito',
+        exercise_load_error: 'Error al cargar el ejercicio',
     },
     
     // English
@@ -353,6 +373,26 @@ const translations = {
         
         // New key for export progress button tooltip
         export_progress_tooltip: 'You must complete all fields in the table to export your progress',
+        
+        // Share dialog
+        share_dialog_title: 'Share Exercise',
+        share_dialog_description: 'Copy the following link or share directly on social media:',
+        copy_button: 'Copy',
+        copied_message: 'Copied!',
+        close_button: 'Close',
+        share_on: 'Share on',
+        share_email: 'Email',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'Shorten URL',
+        shortening_url: 'Shortening URL...',
+        shorten_error: 'Error shortening URL',
+        
+        // Exercise loading notifications
+        exercise_loaded: 'Exercise loaded successfully',
+        exercise_load_error: 'Error loading exercise',
     },
     
     // Galego
@@ -521,7 +561,7 @@ const translations = {
         progress_step1: 'A opción "Exportar Progreso" permíteche descargar un arquivo cos teus puntos e logros actuais. Este botón só estará activo cando o exercicio estea completamente rematado.',
         progress_step2: 'Debes completar todos os valores de Q, W, ΔU, ΔH e ΔS para cada proceso do ciclo antes de poder exportar o teu progreso.',
         progress_step3: 'Utiliza "Importar Progreso" para cargar un arquivo de progreso gardado anteriormente.',
-        progress_step4: 'Aínda que o teu progreso se garda automaticamente no navegador entre sesións, recoméndase exportalo regularmente para evitar perdas de datos.',
+        progress_step4: 'Aínda que o teu progreso se garda automaticamente no navegador entre sesións, recoméndase exportá-lo regularmente para evitar perdas de datos.',
         
         // Nota sobre variables de estado
         state_variables_note: '<strong>Nota importante:</strong> Nun ciclo termodinámico pechado, o cambio total das funcións de estado (enerxía interna ΔU, entalpía ΔH e entropía ΔS) sempre é cero, xa que o sistema volta ao seu estado inicial. Para o total do ciclo, os valores correctos destas variables sempre serán cero.',
@@ -529,6 +569,26 @@ const translations = {
         
         // Nova clave para o tooltip do botón exportar progreso
         export_progress_tooltip: 'Debes completar todos os campos da táboa para poder exportar o teu progreso',
+        
+        // Diálogo de compartir
+        share_dialog_title: 'Compartir Exercicio',
+        share_dialog_description: 'Copia a seguinte ligazón ou comparte directamente nas redes sociais:',
+        copy_button: 'Copiar',
+        copied_message: 'Copiado!',
+        close_button: 'Pechar',
+        share_on: 'Compartir en',
+        share_email: 'Email',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'Acurtar URL',
+        shortening_url: 'Acurtando URL...',
+        shorten_error: 'Erro ao acurtar URL',
+        
+        // Notificacións de carga de exercicio
+        exercise_loaded: 'Exercicio cargado con éxito',
+        exercise_load_error: 'Erro ao cargar o exercicio',
     },
     
     // Français
@@ -704,6 +764,26 @@ const translations = {
         
         // Nouvelle clé pour l'infobulle du bouton d'exportation de progression
         export_progress_tooltip: 'Vous devez compléter tous les champs du tableau pour exporter votre progression',
+        
+        // Dialogue de partage
+        share_dialog_title: 'Partager l\'Exercice',
+        share_dialog_description: 'Copiez le lien suivant ou partagez directement sur les réseaux sociaux:',
+        copy_button: 'Copier',
+        copied_message: 'Copié !',
+        close_button: 'Fermer',
+        share_on: 'Partager sur',
+        share_email: 'Email',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'Raccourcir l\'URL',
+        shortening_url: 'Raccourcissement de l\'URL...',
+        shorten_error: 'Erreur lors du raccourcissement de l\'URL',
+        
+        // Notifications de chargement d'exercice
+        exercise_loaded: 'Exercice chargé avec succès',
+        exercise_load_error: 'Erreur lors du chargement de l\'exercice',
     },
     
     // Português
@@ -880,6 +960,26 @@ const translations = {
         
         // Nova chave para a dica do botão de exportar progresso
         export_progress_tooltip: 'Você deve preencher todos os campos da tabela para exportar seu progresso',
+        
+        // Diálogo de compartilhamento
+        share_dialog_title: 'Compartilhar Exercício',
+        share_dialog_description: 'Copie o seguinte link ou compartilhe diretamente nas redes sociais:',
+        copy_button: 'Copiar',
+        copied_message: 'Copiado!',
+        close_button: 'Fechar',
+        share_on: 'Compartilhar em',
+        share_email: 'Email',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'Encurtar URL',
+        shortening_url: 'Encurtando URL...',
+        shorten_error: 'Erro ao encurtar URL',
+        
+        // Notificações de carregamento de exercício
+        exercise_loaded: 'Exercício carregado com sucesso',
+        exercise_load_error: 'Erro ao carregar o exercício',
     },
     
     // 中文 (Chino)
@@ -1066,6 +1166,26 @@ const translations = {
         
         // 导出进度按钮工具提示的新键
         export_progress_tooltip: '您必须完成表格中的所有字段才能导出进度',
+        
+        // 分享对话框
+        share_dialog_title: '分享练习',
+        share_dialog_description: '复制以下链接或直接在社交媒体上分享：',
+        copy_button: '复制',
+        copied_message: '已复制！',
+        close_button: '关闭',
+        share_on: '分享到',
+        share_email: '电子邮件',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: '缩短链接',
+        shortening_url: '正在缩短链接...',
+        shorten_error: '缩短链接出错',
+        
+        // 练习加载通知
+        exercise_loaded: '练习加载成功',
+        exercise_load_error: '加载练习时出错',
     },
     
     // 日本語 (Japonés)
@@ -1249,6 +1369,26 @@ const translations = {
         
         // エクスポートプログレスボタンのツールチップ用の新しいキー
         export_progress_tooltip: '進捗をエクスポートするには、表のすべてのフィールドを完了する必要があります',
+        
+        // 共有ダイアログ
+        share_dialog_title: 'エクササイズを共有',
+        share_dialog_description: '次のリンクをコピーするか、ソーシャルメディアで直接共有してください：',
+        copy_button: 'コピー',
+        copied_message: 'コピーしました！',
+        close_button: '閉じる',
+        share_on: '共有先',
+        share_email: 'メール',
+        share_whatsapp: 'WhatsApp',
+        share_telegram: 'Telegram',
+        share_twitter: 'Twitter',
+        share_facebook: 'Facebook',
+        shorten_url: 'URLを短縮',
+        shortening_url: 'URLを短縮中...',
+        shorten_error: 'URL短縮エラー',
+        
+        // エクササイズ読み込み通知
+        exercise_loaded: 'エクササイズが正常に読み込まれました',
+        exercise_load_error: 'エクササイズの読み込み中にエラーが発生しました',
     },
     // ... other languages ...
 };
