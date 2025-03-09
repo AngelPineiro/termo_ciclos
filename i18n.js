@@ -7,6 +7,9 @@ const translations = {
         title: 'Simulador de Ciclos Termodinámicos',
         email: 'Correo:',
         license: 'Licencia Apache 2.0',
+        visit_counter: 'Visitas:',
+        correct_validations: 'Correctas:',
+        incorrect_validations: 'Incorrectas:',
         
         // Tipos de procesos
         adiabatic: 'Adiabático',
@@ -23,6 +26,10 @@ const translations = {
         rankine_cycle: 'Ciclo Rankine',
         brayton_cycle: 'Ciclo Brayton',
         generate_cycle: 'Generar Nuevo Ciclo',
+        
+        // Compartir ejercicio
+        share_exercise: 'Compartir Ejercicio',
+        confirm_replace_shared_cycle: 'Estás viendo un ejercicio compartido. ¿Realmente quieres generar un nuevo ciclo? Se perderán los datos del ejercicio compartido.',
         
         // Datos del problema
         problem_data: 'Datos del problema',
@@ -186,6 +193,9 @@ const translations = {
         title: 'Thermodynamic Cycles Simulator',
         email: 'Email:',
         license: 'Apache 2.0 License',
+        visit_counter: 'Visits:',
+        correct_validations: 'Correct:',
+        incorrect_validations: 'Incorrect:',
         
         // Process types
         adiabatic: 'Adiabatic',
@@ -202,6 +212,10 @@ const translations = {
         rankine_cycle: 'Rankine Cycle',
         brayton_cycle: 'Brayton Cycle',
         generate_cycle: 'Generate New Cycle',
+        
+        // Share exercise
+        share_exercise: 'Share Exercise',
+        confirm_replace_shared_cycle: 'You are viewing a shared exercise. Do you really want to generate a new cycle? The shared exercise data will be lost.',
         
         // Problem data
         problem_data: 'Problem Data',
@@ -362,6 +376,7 @@ const translations = {
         title: 'Simulador de Ciclos Termodinámicos',
         email: 'Correo:',
         license: 'Licenza Apache 2.0',
+        visit_counter: 'Visitas:',
         
         // Tipos de procesos
         adiabatic: 'Adiabático',
@@ -378,6 +393,10 @@ const translations = {
         rankine_cycle: 'Ciclo Rankine',
         brayton_cycle: 'Ciclo Brayton',
         generate_cycle: 'Xerar Novo Ciclo',
+        
+        // Compartir exercicio
+        share_exercise: 'Compartir Exercicio',
+        confirm_replace_shared_cycle: 'Estás a ver un exercicio compartido. Realmente queres xerar un novo ciclo? Perderanse os datos do exercicio compartido.',
         
         // Datos do problema
         problem_data: 'Datos do problema',
@@ -538,6 +557,7 @@ const translations = {
         title: 'Simulateur de Cycles Thermodynamiques',
         email: 'Courriel:',
         license: 'Licence Apache 2.0',
+        visit_counter: 'Visites:',
         
         // Types de processus
         adiabatic: 'Adiabatique',
@@ -551,8 +571,8 @@ const translations = {
         carnot_cycle: 'Cycle de Carnot',
         otto_cycle: 'Cycle d\'Otto',
         diesel_cycle: 'Cycle Diesel',
-        rankine_cycle: 'Cycle Rankine',
-        brayton_cycle: 'Cycle Brayton',
+        rankine_cycle: 'Cycle de Rankine',
+        brayton_cycle: 'Cycle de Brayton',
         generate_cycle: 'Générer Nouveau Cycle',
         
         // Données du problème
@@ -593,6 +613,7 @@ const translations = {
         
         // Boutons
         share_exercise: 'Partager l\'Exercice',
+        confirm_replace_shared_cycle: 'Vous consultez un exercice partagé. Voulez-vous vraiment générer un nouveau cycle? Les données de l\'exercice partagé seront perdues.',
         
         // Instructions
         instructions_title: 'Instructions',
@@ -658,9 +679,9 @@ const translations = {
         brayton_description: 'Le cycle de Brayton est le cycle idéal pour les turbines à gaz et les moteurs à réaction. Il se compose de processus adiabatiques et isobares.',
         brayton_processes: 'Processus:',
         brayton_process1: '1→2: Compression adiabatique dans le compresseur',
-        brayton_process2: '2→3: Addition of chaleur a pression constante dans la chambre de combustion',
+        brayton_process2: '2→3: Addition de chaleur à pression constante dans la chambre de combustion',
         brayton_process3: '3→4: Expansion adiabatique dans la turbine',
-        brayton_process4: '4→1: Heat rejection at constant pressure',
+        brayton_process4: '4→1: Rejet de chaleur à pression constante',
         brayton_efficiency: 'Rendement:',
         brayton_efficiency_explanation: 'Où r est le rapport de pression et γ est le coefficient adiabatique.',
         
@@ -713,6 +734,7 @@ const translations = {
         title: 'Simulador de Ciclos Termodinâmicos',
         email: 'E-mail:',
         license: 'Licença Apache 2.0',
+        visit_counter: 'Visitas:',
         
         // Tipos de processos
         adiabatic: 'Adiabático',
@@ -723,12 +745,16 @@ const translations = {
         
         // Ciclos
         random_cycle: 'Ciclo Aleatório',
-        otto_cycle: 'Ciclo de Otto',
         carnot_cycle: 'Ciclo de Carnot',
+        otto_cycle: 'Ciclo de Otto',
         diesel_cycle: 'Ciclo Diesel',
         rankine_cycle: 'Ciclo Rankine',
         brayton_cycle: 'Ciclo Brayton',
         generate_cycle: 'Gerar Novo Ciclo',
+        
+        // Compartilhar exercício
+        share_exercise: 'Compartilhar Exercício',
+        confirm_replace_shared_cycle: 'Você está visualizando um exercício compartilhado. Deseja realmente gerar um novo ciclo? Os dados do exercício compartilhado serão perdidos.',
         
         // Dados do problema
         problem_data: 'Dados do problema',
@@ -884,17 +910,18 @@ const translations = {
     
     // 中文 (Chino)
     zh: {
-        // Interfaz general
+        // 通用界面
         language: '语言:',
         title: '热力学循环模拟器',
         email: '电子邮件:',
         license: 'Apache 2.0 许可证',
+        visit_counter: '访问量:',
         
         // Tipos de procesos
-        adiabatic: '绝热过程',
-        isochoric: '等容过程',
-        isothermal: '等温过程',
-        isobaric: '等压过程',
+        adiabatic: '绝热的',
+        isochoric: '等容的',
+        isothermal: '等温的',
+        isobaric: '等压的',
         linear: '线性 P-V',
         
         // Ciclos
@@ -905,6 +932,10 @@ const translations = {
         rankine_cycle: '朗肯循环',
         brayton_cycle: '布雷顿循环',
         generate_cycle: '生成新循环',
+        
+        // 分享练习
+        share_exercise: '分享练习',
+        confirm_replace_shared_cycle: '您正在查看共享练习。您确定要生成新的循环吗？共享练习数据将丢失。',
         
         // Datos del problema
         problem_data: '问题数据',
@@ -1075,6 +1106,7 @@ const translations = {
         title: '熱力学サイクルシミュレーター',
         email: 'メール:',
         license: 'Apache 2.0 ライセンス',
+        visit_counter: '訪問数:',
         
         // Tipos de procesos
         adiabatic: '断熱過程',
@@ -1091,6 +1123,10 @@ const translations = {
         rankine_cycle: 'ランキンサイクル',
         brayton_cycle: 'ブレイトンサイクル',
         generate_cycle: '新しいサイクルを生成',
+        
+        // 演習を共有
+        share_exercise: '演習を共有',
+        confirm_replace_shared_cycle: '共有された演習を表示しています。本当に新しいサイクルを生成しますか？共有された演習データは失われます。',
         
         // Datos del problema
         problem_data: '問題データ',

@@ -342,11 +342,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar el sistema de gamificación
     gamificationSystem.initialize();
     
+    // Incrementar y mostrar el contador de visitas
+    updateVisitCounter();
+    
+    // Cargar los contadores de validaciones correctas e incorrectas
+    loadValidationCounters();
+    
     // Configurar manejadores de eventos
     const generateBtn = document.getElementById('generate-cycle-btn');
     if (generateBtn) {
         generateBtn.addEventListener('click', function() {
-            generateCycle();
+            // Si estamos en modo de visualización, preguntar antes de generar un nuevo ciclo
+            if (viewCycle) {
+                let confirmMessage = "Estás viendo un ejercicio compartido. ¿Realmente quieres generar un nuevo ciclo? Se perderán los datos del ejercicio compartido.";
+                // Usar el sistema de traducción si está disponible
+                if (typeof getTranslation === 'function') {
+                    confirmMessage = getTranslation('confirm_replace_shared_cycle');
+                }
+                
+                if (confirm(confirmMessage)) {
+                    viewCycle = false; // Desactivar modo de visualización
+                    
+                    // Limpiar las variables compartidas para que no afecten al nuevo ciclo
+                    if (window.sharedExerciseVariables) {
+                        console.log("Limpiando variables de ejercicio compartido para nuevo ciclo");
+                        window.sharedExerciseVariables = null;
+                    }
+                    
+                    generateCycle();
+                }
+            } else {
+                generateCycle();
+            }
         });
     }
 
@@ -473,17 +500,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Cargar ejercicio compartido si existe en la URL
-    loadSharedExercise();
+    // Variable para rastrear si se ha cargado un ejercicio compartido
+    let sharedExerciseLoaded = false;
     
-    // Generar ciclo inicial
-    generateCycle();
+    // Cargar ejercicio compartido si existe en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('state')) {
+        sharedExerciseLoaded = loadSharedExercise();
+    }
+    
+    // Solo generar ciclo inicial si no se ha cargado un ejercicio compartido
+    if (!sharedExerciseLoaded) {
+        generateCycle();
+    }
 });
 
 /**
  * Genera un ciclo termodinámico siguiendo el algoritmo proporcionado
  */
 function generateCycle() {
+    // Si estamos en modo de visualización de un ciclo compartido, no generar uno nuevo
+    if (viewCycle) {
+        console.log("En modo de visualización de ciclo compartido. No se generará un nuevo ciclo.");
+        // Actualizar la interfaz por si acaso
+        drawGraph();
+        displayProblemData();
+        setupTable();
+        return cycleData;
+    }
+
+    // Limpiar las variables compartidas si existen para que no afecten al nuevo ciclo
+    if (window.sharedExerciseVariables) {
+        console.log("Limpiando variables de ejercicio compartido para nuevo ciclo");
+        window.sharedExerciseVariables = null;
+    }
+
     console.log("Generando ciclo termodinámico con algoritmo robusto...");
     
     // Obtener el tipo de ciclo seleccionado
@@ -504,6 +555,7 @@ function generateCycle() {
         
         // Calcular la dificultad del ciclo y actualizar la interfaz
         const difficultyLevel = gamificationSystem.calculateDifficulty(cycleData);
+        gameState.currentDifficulty = difficultyLevel;
         gamificationSystem.updateDifficultyDisplay(difficultyLevel);
         
         // Actualizar la interfaz
@@ -2326,160 +2378,166 @@ function displayProblemData() {
     tableDiv.className = 'points-table-container';
     
     // Determinar qué información mostrar
-    const showVariables = {};
+    let showVariables = {};
 
-    // Aplicar el mismo algoritmo para todos los ciclos, incluyendo los predefinidos
-    // Inicializar todos los puntos como no visibles
-    for (let i = 1; i <= cycleData.length; i++) {
-        showVariables[i] = { p: false, v: false, t: false };
-    }
-    
-    // 1. Primer punto: Mostrar siempre 2 variables (P y V por defecto)
-    showVariables[1].p = true;
-    showVariables[1].v = true;
-    
-    // 2. Recorrer secuencialmente los puntos, considerando las restricciones
-    // Array para rastrear qué puntos ya están completamente resueltos
-    const resolvedPoints = [true]; // El punto 0 no existe, el punto 1 ya está resuelto
-    for (let i = 2; i <= cycleData.length; i++) {
-        resolvedPoints.push(false); // Inicializar como no resuelto
-    }
-    resolvedPoints[1] = true; // El primer punto está resuelto
-    
-    // Resolver secuencialmente los puntos 2 a n
-    for (let i = 1; i < cycleData.length; i++) {
-        const currentPoint = cycleData[i - 1]; // Punto actual (ya resuelto)
-        const nextIndex = currentPoint.nextIndex; // Índice del siguiente punto
-        const nextPointNum = nextIndex + 1; // Número del siguiente punto (1-indexed)
-        const processType = currentPoint.processType; // Tipo de proceso que conecta
+    // Si tenemos variables guardadas de un ejercicio compartido, usarlas
+    if (window.sharedExerciseVariables && viewCycle) {
+        console.log("Usando variables mostradas del ejercicio compartido");
+        showVariables = window.sharedExerciseVariables;
+    } else {
+        // Aplicar el mismo algoritmo para todos los ciclos, incluyendo los predefinidos
+        // Inicializar todos los puntos como no visibles
+        for (let i = 1; i <= cycleData.length; i++) {
+            showVariables[i] = { p: false, v: false, t: false };
+        }
         
-        // Si el siguiente punto ya está resuelto, continuar
-        if (resolvedPoints[nextPointNum]) continue;
+        // 1. Primer punto: Mostrar siempre 2 variables (P y V por defecto)
+        showVariables[1].p = true;
+        showVariables[1].v = true;
         
-        // Según el tipo de proceso, aplicar las reglas correspondientes
-        if (processType === 4) { // Proceso lineal
-            // Para proceso lineal, mostrar 2 variables cualesquiera
-            let varsToAssign = 2;
-            const vars = ['p', 'v', 't'];
-            // Asignar variables aleatoriamente
-            while (varsToAssign > 0 && vars.length > 0) {
+        // 2. Recorrer secuencialmente los puntos, considerando las restricciones
+        // Array para rastrear qué puntos ya están completamente resueltos
+        const resolvedPoints = [true]; // El punto 0 no existe, el punto 1 ya está resuelto
+        for (let i = 2; i <= cycleData.length; i++) {
+            resolvedPoints.push(false); // Inicializar como no resuelto
+        }
+        resolvedPoints[1] = true; // El primer punto está resuelto
+        
+        // Resolver secuencialmente los puntos 2 a n
+        for (let i = 1; i < cycleData.length; i++) {
+            const currentPoint = cycleData[i - 1]; // Punto actual (ya resuelto)
+            const nextIndex = currentPoint.nextIndex; // Índice del siguiente punto
+            const nextPointNum = nextIndex + 1; // Número del siguiente punto (1-indexed)
+            const processType = currentPoint.processType; // Tipo de proceso que conecta
+            
+            // Si el siguiente punto ya está resuelto, continuar
+            if (resolvedPoints[nextPointNum]) continue;
+            
+            // Según el tipo de proceso, aplicar las reglas correspondientes
+            if (processType === 4) { // Proceso lineal
+                // Para proceso lineal, mostrar 2 variables cualesquiera
+                let varsToAssign = 2;
+                const vars = ['p', 'v', 't'];
+                // Asignar variables aleatoriamente
+                while (varsToAssign > 0 && vars.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * vars.length);
+                    const varToShow = vars[randomIndex];
+                    showVariables[nextPointNum][varToShow] = true;
+                    vars.splice(randomIndex, 1); // Eliminar la variable ya asignada
+                    varsToAssign--;
+                }
+            } else { // Procesos con restricción física
+                // Para procesos con restricción, mostrar 1 variable que no sea la que impone la restricción
+                // Determinar qué variable no puede mostrarse según el tipo de proceso
+                let restrictedVar = null;
+                if (processType === 1) restrictedVar = 'v'; // Isocórico - V constante
+                else if (processType === 2) restrictedVar = 't'; // Isotérmico - T constante
+                else if (processType === 3) restrictedVar = 'p'; // Isobárico - P constante
+                
+                // Lista de variables posibles
+                const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+                
+                // Elegir aleatoriamente una variable que no sea la restringida
                 const randomIndex = Math.floor(Math.random() * vars.length);
                 const varToShow = vars[randomIndex];
                 showVariables[nextPointNum][varToShow] = true;
-                vars.splice(randomIndex, 1); // Eliminar la variable ya asignada
-                varsToAssign--;
             }
-        } else { // Procesos con restricción física
-            // Para procesos con restricción, mostrar 1 variable que no sea la que impone la restricción
-            // Determinar qué variable no puede mostrarse según el tipo de proceso
-            let restrictedVar = null;
-            if (processType === 1) restrictedVar = 'v'; // Isocórico - V constante
-            else if (processType === 2) restrictedVar = 't'; // Isotérmico - T constante
-            else if (processType === 3) restrictedVar = 'p'; // Isobárico - P constante
             
-            // Lista de variables posibles
-            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
-            
-            // Elegir aleatoriamente una variable que no sea la restringida
-            const randomIndex = Math.floor(Math.random() * vars.length);
-            const varToShow = vars[randomIndex];
-            showVariables[nextPointNum][varToShow] = true;
+            // Marcar el punto como resuelto
+            resolvedPoints[nextPointNum] = true;
         }
         
-        // Marcar el punto como resuelto
-        resolvedPoints[nextPointNum] = true;
-    }
-    
-    // 3. Tratamiento especial para el último punto que cierra el ciclo
-    const lastPointNum = cycleData.length;
-    const lastPoint = cycleData[lastPointNum - 1];
-    
-    // Solo si el último punto conecta con el primero (cierra el ciclo)
-    if (lastPoint.nextIndex === 0) {
-        const processTypeToFirst = lastPoint.processType;
-        const processTypeFromPrev = cycleData[lastPointNum - 2].processType;
+        // 3. Tratamiento especial para el último punto que cierra el ciclo
+        const lastPointNum = cycleData.length;
+        const lastPoint = cycleData[lastPointNum - 1];
         
-        // Si ambos son procesos lineales, ya está resuelto por el paso anterior
-        if (processTypeToFirst === 4 && processTypeFromPrev === 4) {
-            // Ya se asignaron 2 variables, no hacer nada más
-        } 
-        // Si uno es lineal y el otro no
-        else if (processTypeToFirst === 4 || processTypeFromPrev === 4) {
-            // Mantener una variable según la restricción que no sea lineal
-            let restrictedVar = null;
-            if (processTypeToFirst !== 4) {
-                // La restricción viene del proceso que conecta con el primero
-                if (processTypeToFirst === 1) restrictedVar = 'v'; // Isocórico
-                else if (processTypeToFirst === 2) restrictedVar = 't'; // Isotérmico
-                else if (processTypeToFirst === 3) restrictedVar = 'p'; // Isobárico
-            } else {
-                // La restricción viene del proceso anterior
-                if (processTypeFromPrev === 1) restrictedVar = 'v'; // Isocórico
-                else if (processTypeFromPrev === 2) restrictedVar = 't'; // Isotérmico
-                else if (processTypeFromPrev === 3) restrictedVar = 'p'; // Isobárico
-            }
+        // Solo si el último punto conecta con el primero (cierra el ciclo)
+        if (lastPoint.nextIndex === 0) {
+            const processTypeToFirst = lastPoint.processType;
+            const processTypeFromPrev = cycleData[lastPointNum - 2].processType;
             
-            // Resetear las variables y asignar solo las correctas
-            showVariables[lastPointNum] = { p: false, v: false, t: false };
-            
-            // Asignar una variable que no sea la restringida
-            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
-            const varToShow = vars[Math.floor(Math.random() * vars.length)];
-            showVariables[lastPointNum][varToShow] = true;
-        }
-        // Si ambos imponen restricciones
-        else {
-            // Determinar las variables restringidas por ambos procesos
-            let restrictedVars = [];
-            let hasAdiabatic = false;
-            let hasNonLinearNonAdiabatic = false;
-            
-            // Verificar si hay adiabática y otra restricción no lineal
-            if (processTypeFromPrev === 0 || processTypeToFirst === 0) {
-                hasAdiabatic = true;
-            }
-            
-            if ((processTypeFromPrev >= 1 && processTypeFromPrev <= 3) || 
-                (processTypeToFirst >= 1 && processTypeToFirst <= 3)) {
-                hasNonLinearNonAdiabatic = true;
-            }
-            
-            // Si hay una adiabática y otra restricción no lineal, el punto está determinado
-            if (hasAdiabatic && hasNonLinearNonAdiabatic) {
-                // El punto está completamente determinado, no mostrar ninguna variable
+            // Si ambos son procesos lineales, ya está resuelto por el paso anterior
+            if (processTypeToFirst === 4 && processTypeFromPrev === 4) {
+                // Ya se asignaron 2 variables, no hacer nada más
+            } 
+            // Si uno es lineal y el otro no
+            else if (processTypeToFirst === 4 || processTypeFromPrev === 4) {
+                // Mantener una variable según la restricción que no sea lineal
+                let restrictedVar = null;
+                if (processTypeToFirst !== 4) {
+                    // La restricción viene del proceso que conecta con el primero
+                    if (processTypeToFirst === 1) restrictedVar = 'v'; // Isocórico
+                    else if (processTypeToFirst === 2) restrictedVar = 't'; // Isotérmico
+                    else if (processTypeToFirst === 3) restrictedVar = 'p'; // Isobárico
+                } else {
+                    // La restricción viene del proceso anterior
+                    if (processTypeFromPrev === 1) restrictedVar = 'v'; // Isocórico
+                    else if (processTypeFromPrev === 2) restrictedVar = 't'; // Isotérmico
+                    else if (processTypeFromPrev === 3) restrictedVar = 'p'; // Isobárico
+                }
+                
+                // Resetear las variables y asignar solo las correctas
                 showVariables[lastPointNum] = { p: false, v: false, t: false };
-            } else {
-                // Restricción del proceso que conecta con el punto anterior
-                if (processTypeFromPrev === 1) restrictedVars.push('v'); // Isocórico
-                else if (processTypeFromPrev === 2) restrictedVars.push('t'); // Isotérmico
-                else if (processTypeFromPrev === 3) restrictedVars.push('p'); // Isobárico
                 
-                // Restricción del proceso que conecta con el primer punto
-                if (processTypeToFirst === 1) restrictedVars.push('v'); // Isocórico
-                else if (processTypeToFirst === 2) restrictedVars.push('t'); // Isotérmico
-                else if (processTypeToFirst === 3) restrictedVars.push('p'); // Isobárico
+                // Asignar una variable que no sea la restringida
+                const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+                const varToShow = vars[Math.floor(Math.random() * vars.length)];
+                showVariables[lastPointNum][varToShow] = true;
+            }
+            // Si ambos imponen restricciones
+            else {
+                // Determinar las variables restringidas por ambos procesos
+                let restrictedVars = [];
+                let hasAdiabatic = false;
+                let hasNonLinearNonAdiabatic = false;
                 
-                // Si hay dos restricciones diferentes (que no sean adiabáticas), el punto está determinado
-                if (restrictedVars.length === 2 && restrictedVars[0] !== restrictedVars[1]) {
-                    // El punto está determinado por las dos restricciones, eliminar todas las variables
+                // Verificar si hay adiabática y otra restricción no lineal
+                if (processTypeFromPrev === 0 || processTypeToFirst === 0) {
+                    hasAdiabatic = true;
+                }
+                
+                if ((processTypeFromPrev >= 1 && processTypeFromPrev <= 3) || 
+                    (processTypeToFirst >= 1 && processTypeToFirst <= 3)) {
+                    hasNonLinearNonAdiabatic = true;
+                }
+                
+                // Si hay una adiabática y otra restricción no lineal, el punto está determinado
+                if (hasAdiabatic && hasNonLinearNonAdiabatic) {
+                    // El punto está completamente determinado, no mostrar ninguna variable
                     showVariables[lastPointNum] = { p: false, v: false, t: false };
                 } else {
-                    // Solo hay una restricción o ambas son iguales, o ambas son adiabáticas
-                    // Resetear las variables y asignar solo una que no esté restringida
-                    showVariables[lastPointNum] = { p: false, v: false, t: false };
+                    // Restricción del proceso que conecta con el punto anterior
+                    if (processTypeFromPrev === 1) restrictedVars.push('v'); // Isocórico
+                    else if (processTypeFromPrev === 2) restrictedVars.push('t'); // Isotérmico
+                    else if (processTypeFromPrev === 3) restrictedVars.push('p'); // Isobárico
                     
-                    // Si ambos procesos son adiabáticos, mostrar una variable cualquiera
-                    if (processTypeFromPrev === 0 && processTypeToFirst === 0) {
-                        const varToShow = ['p', 'v', 't'][Math.floor(Math.random() * 3)];
-                        showVariables[lastPointNum][varToShow] = true;
+                    // Restricción del proceso que conecta con el primer punto
+                    if (processTypeToFirst === 1) restrictedVars.push('v'); // Isocórico
+                    else if (processTypeToFirst === 2) restrictedVars.push('t'); // Isotérmico
+                    else if (processTypeToFirst === 3) restrictedVars.push('p'); // Isobárico
+                    
+                    // Si hay dos restricciones diferentes (que no sean adiabáticas), el punto está determinado
+                    if (restrictedVars.length === 2 && restrictedVars[0] !== restrictedVars[1]) {
+                        // El punto está determinado por las dos restricciones, eliminar todas las variables
+                        showVariables[lastPointNum] = { p: false, v: false, t: false };
                     } else {
-                        // Obtener variables no restringidas
-                        const uniqueRestricted = [...new Set(restrictedVars)]; // Eliminar duplicados
-                        const vars = ['p', 'v', 't'].filter(v => !uniqueRestricted.includes(v));
+                        // Solo hay una restricción o ambas son iguales, o ambas son adiabáticas
+                        // Resetear las variables y asignar solo una que no esté restringida
+                        showVariables[lastPointNum] = { p: false, v: false, t: false };
                         
-                        if (vars.length > 0) {
-                            const varToShow = vars[Math.floor(Math.random() * vars.length)];
+                        // Si ambos procesos son adiabáticos, mostrar una variable cualquiera
+                        if (processTypeFromPrev === 0 && processTypeToFirst === 0) {
+                            const varToShow = ['p', 'v', 't'][Math.floor(Math.random() * 3)];
                             showVariables[lastPointNum][varToShow] = true;
+                        } else {
+                            // Obtener variables no restringidas
+                            const uniqueRestricted = [...new Set(restrictedVars)]; // Eliminar duplicados
+                            const vars = ['p', 'v', 't'].filter(v => !uniqueRestricted.includes(v));
+                            
+                            if (vars.length > 0) {
+                                const varToShow = vars[Math.floor(Math.random() * vars.length)];
+                                showVariables[lastPointNum][varToShow] = true;
+                            }
                         }
                     }
                 }
@@ -2487,10 +2545,12 @@ function displayProblemData() {
         }
     }
     
-    if (cycleType === 'random') {
-        console.log("Variables mostradas para ciclo aleatorio (algoritmo completo):", showVariables);
+    // Limpiar las variables compartidas después de usarlas (para evitar que afecten a nuevos ciclos generados)
+    if (window.sharedExerciseVariables && viewCycle) {
+        // No limpiamos window.sharedExerciseVariables aquí porque podríamos necesitarla para regeneraciones
+        console.log("Variables de ejercicio compartido aplicadas");
     } else {
-        console.log(`Variables mostradas para ciclo ${cycleType} (algoritmo general):`, showVariables);
+        console.log(`Variables generadas para ciclo ${cycleType}:`, showVariables);
     }
     
     // Construir la tabla HTML
@@ -2977,6 +3037,12 @@ function markAsCorrect(input, correctValue) {
     
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, true);
+    
+    // Incrementar el contador global de validaciones correctas si es la primera vez que se valida este campo
+    if (!input.hasAttribute('data-validated') || input.getAttribute('data-validated') !== 'true') {
+        updateCorrectCounter();
+        input.setAttribute('data-validated', 'true');
+    }
 }
 
 // Función auxiliar para marcar una respuesta como incorrecta
@@ -2997,6 +3063,12 @@ function markAsIncorrect(input, correctValue) {
     
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, false);
+    
+    // Incrementar el contador global de validaciones incorrectas si es la primera vez que se valida este campo
+    if (!input.hasAttribute('data-validated') || input.getAttribute('data-validated') !== 'true') {
+        updateIncorrectCounter();
+        input.setAttribute('data-validated', 'true');
+    }
 }
 
 /**
@@ -3005,12 +3077,28 @@ function markAsIncorrect(input, correctValue) {
 function shareExercise() {
     // Recopilar los datos actuales del ciclo y el estado del ejercicio
     const exerciseState = {
-        cycleType: document.getElementById('cycle-type-selector').value,
-        cycleData: cycleData,
+        // Usar el tipo de ciclo actual en lugar del selector
+        cycleType: currentCycleType || document.getElementById('cycle-type-selector').value,
+        cycleData: JSON.parse(JSON.stringify(cycleData)), // Copia profunda para evitar problemas de referencia
         numMoles: numMoles,
         // Recopilar las respuestas del usuario si hay alguna
         userAnswers: {}
     };
+    
+    // Recopilar qué variables se muestran para cada punto
+    exerciseState.shownVariables = {};
+    const pointCells = document.querySelector('.points-table tbody').querySelectorAll('tr');
+    
+    pointCells.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 4) { // Asegurarnos de que hay suficientes celdas
+            exerciseState.shownVariables[index + 1] = {
+                p: cells[1].textContent !== '—',
+                v: cells[2].textContent !== '—',
+                t: cells[3].textContent !== '—'
+            };
+        }
+    });
     
     // Capturar las respuestas que el usuario haya introducido hasta el momento
     for (let i = 0; i < cycleData.length; i++) {
@@ -3028,9 +3116,44 @@ function shareExercise() {
     exerciseState.userAnswers[`dh-total`] = document.getElementById(`dh-total`).value;
     exerciseState.userAnswers[`ds-total`] = document.getElementById(`ds-total`).value;
     
+    // Incluir información de los procesos para garantizar reproducibilidad
+    exerciseState.processInfo = [];
+    
+    // Extraer información adicional sobre los procesos
+    const processesContainer = document.querySelector('.processes');
+    if (processesContainer) {
+        const processElements = processesContainer.querySelectorAll('.data-value');
+        processElements.forEach((processElement, index) => {
+            exerciseState.processInfo.push({
+                index: index,
+                displayText: processElement.textContent,
+                processType: cycleData[index]?.processType
+            });
+        });
+    }
+    
+    // Incluir también los puntos del ciclo con todos sus detalles
+    exerciseState.points = [];
+    const pointsContainer = document.querySelector('.points');
+    if (pointsContainer) {
+        const pointElements = pointsContainer.querySelectorAll('.data-value');
+        let pointIndex = 0;
+        for (let i = 0; i < pointElements.length; i += 3) {
+            if (i + 2 < pointElements.length) {
+                exerciseState.points.push({
+                    index: pointIndex,
+                    p: pointElements[i].textContent,
+                    v: pointElements[i + 1].textContent,
+                    t: pointElements[i + 2].textContent
+                });
+                pointIndex++;
+            }
+        }
+    }
+    
     // Convertir a JSON y codificar para URL
     const stateJson = JSON.stringify(exerciseState);
-    const stateBase64 = btoa(stateJson);
+    const stateBase64 = btoa(encodeURIComponent(stateJson));
     
     // Crear URL con el estado
     const shareUrl = `${window.location.href.split('?')[0]}?state=${stateBase64}`;
@@ -3069,6 +3192,7 @@ function shareExercise() {
 
 /**
  * Función para cargar un ejercicio compartido
+ * @returns {boolean} - true si se cargó correctamente un ejercicio compartido, false en caso contrario
  */
 function loadSharedExercise() {
     // Verificar si hay un estado en la URL
@@ -3078,15 +3202,39 @@ function loadSharedExercise() {
     if (stateParam) {
         try {
             // Decodificar el estado
-            const stateJson = atob(stateParam);
+            const stateJson = decodeURIComponent(atob(stateParam));
             const exerciseState = JSON.parse(stateJson);
             
             // Restaurar el tipo de ciclo
             document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
+            currentCycleType = exerciseState.cycleType;
             
             // Restaurar los datos del ciclo
             cycleData = exerciseState.cycleData;
             numMoles = exerciseState.numMoles;
+            
+            // Guardar las variables mostradas para cada punto para usarlas en displayProblemData
+            if (exerciseState.shownVariables) {
+                window.sharedExerciseVariables = exerciseState.shownVariables;
+                console.log("Variables mostradas cargadas del ejercicio compartido:", window.sharedExerciseVariables);
+            }
+            
+            // Verificar si hay información específica sobre los procesos y puntos
+            if (exerciseState.processInfo && exerciseState.processInfo.length > 0) {
+                console.log("Información de procesos disponible en el estado compartido.");
+            }
+            
+            if (exerciseState.points && exerciseState.points.length > 0) {
+                console.log("Información de puntos disponible en el estado compartido.");
+            }
+            
+            // Actualizar la dificultad del ciclo
+            const difficultyLevel = gamificationSystem.calculateDifficulty(cycleData);
+            gameState.currentDifficulty = difficultyLevel;
+            gamificationSystem.updateDifficultyDisplay(difficultyLevel);
+            
+            // Prevenir cualquier regeneración aleatoria
+            viewCycle = true;
             
             // Dibujar el ciclo y mostrar datos
             drawGraph();
@@ -3101,14 +3249,20 @@ function loadSharedExercise() {
                         inputElement.value = value;
                     }
                 }
+                // Actualizar los totales en tiempo real
+                updateRealTimeTotals();
             }
             
             console.log("Ejercicio compartido cargado con éxito");
+            return true;
         } catch (error) {
             console.error("Error al cargar el ejercicio compartido:", error);
+            console.error("Detalle del error:", error.message);
             alert("Error al cargar el ejercicio compartido. El enlace podría estar corrupto.");
+            return false;
         }
     }
+    return false;
 }
 
 /**
@@ -3322,3 +3476,247 @@ document.addEventListener('languageChanged', function(e) {
     // Redibujar el gráfico para actualizar leyendas y etiquetas
     drawGraph();
 });
+
+/**
+ * Actualiza el contador de visitas global usando CountAPI
+ * Esta es una alternativa más sencilla a Firebase
+ */
+function updateVisitCounterWithCountAPI() {
+    const VISIT_THRESHOLD = 30 * 60 * 1000; // 30 minutos en milisegundos
+    const LAST_VISIT_KEY = 'thermoSimulatorLastVisit';
+    
+    // Obtener el tiempo de la última visita del localStorage
+    const lastVisitTime = localStorage.getItem(LAST_VISIT_KEY) || '0';
+    const currentTime = new Date().getTime();
+    
+    // Verificar si esta es una nueva visita (más de 30 minutos desde la última)
+    const isNewVisit = (currentTime - parseInt(lastVisitTime) > VISIT_THRESHOLD);
+    
+    // Actualizar el tiempo de la última visita en localStorage
+    localStorage.setItem(LAST_VISIT_KEY, currentTime.toString());
+    
+    // ID o nombre para el contador (puedes personalizarlo)
+    const countNamespace = 'thermosimulator';
+    
+    // Endpoint para obtener el conteo actual
+    fetch(`https://api.countapi.xyz/get/${countNamespace}/visits`)
+        .then(response => response.json())
+        .then(data => {
+            let currentCount = data.value || 0;
+            
+            // Actualizar el contador en la interfaz
+            const visitCountElement = document.getElementById('visit-count');
+            if (visitCountElement) {
+                visitCountElement.textContent = currentCount.toLocaleString();
+            }
+            
+            // Si es una nueva visita, incrementar el contador
+            if (isNewVisit) {
+                fetch(`https://api.countapi.xyz/hit/${countNamespace}/visits`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Actualizar la interfaz con el nuevo valor
+                        if (visitCountElement && data.value) {
+                            visitCountElement.textContent = data.value.toLocaleString();
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error al incrementar el contador:", error);
+                    });
+            }
+        })
+        .catch(error => {
+            console.error("Error al obtener el contador:", error);
+            // Mostrar al menos el contador local en caso de error
+            showLocalVisitCounter();
+        });
+}
+
+/**
+ * Muestra un contador de visitas local (fallback si Firebase no está disponible)
+ */
+function showLocalVisitCounter() {
+    const VISIT_COUNTER_KEY = 'thermoSimulatorVisits';
+    let visitCount = parseInt(localStorage.getItem(VISIT_COUNTER_KEY) || '0');
+    
+    // Comprobar si hemos incrementado el contador en esta sesión
+    if (!window.visitCountIncremented) {
+        visitCount++;
+        localStorage.setItem(VISIT_COUNTER_KEY, visitCount.toString());
+        window.visitCountIncremented = true;
+    }
+    
+    // Mostrar el contador en la interfaz
+    const visitCountElement = document.getElementById('visit-count');
+    if (visitCountElement) {
+        visitCountElement.textContent = visitCount.toLocaleString();
+    }
+}
+
+/**
+ * Actualiza el contador de visitas global
+ * Esta función decide qué implementación usar (Firebase o CountAPI)
+ */
+function updateVisitCounter() {
+    // Puedes cambiar esta variable a 'countapi' o 'firebase' según tu preferencia
+    const COUNTER_SERVICE = 'firebase'; // 'countapi';
+    
+    if (COUNTER_SERVICE === 'firebase' && typeof firebase !== 'undefined' && firebase.database) {
+        // Usar Firebase si está disponible y configurado
+        updateVisitCounterWithFirebase();
+    } else if (COUNTER_SERVICE === 'countapi') {
+        // Usar CountAPI (no requiere configuración adicional)
+        updateVisitCounterWithCountAPI();
+    } else {
+        // Fallback a contador local
+        console.warn("Servicio de contador no disponible. Usando contador local.");
+        showLocalVisitCounter();
+    }
+}
+
+/**
+ * Actualiza el contador de visitas global usando Firebase
+ */
+function updateVisitCounterWithFirebase() {
+    const VISIT_THRESHOLD = 30 * 60 * 1000; // 30 minutos en milisegundos
+    const LAST_VISIT_KEY = 'thermoSimulatorLastVisit';
+    
+    // Obtener el tiempo de la última visita del localStorage
+    const lastVisitTime = localStorage.getItem(LAST_VISIT_KEY) || '0';
+    const currentTime = new Date().getTime();
+    
+    // Verificar si esta es una nueva visita (más de 30 minutos desde la última)
+    const isNewVisit = (currentTime - parseInt(lastVisitTime) > VISIT_THRESHOLD);
+    
+    // Actualizar el tiempo de la última visita en localStorage
+    localStorage.setItem(LAST_VISIT_KEY, currentTime.toString());
+    
+    // Obtener referencia a Firebase para el contador
+    // Usamos un script aparte para cargar Firebase y evitar errores hasta que se implementa
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        // Referencia al contador en Firebase
+        const visitsRef = firebase.database().ref('visits/counter');
+        
+        // Obtener el valor actual del contador
+        visitsRef.once('value')
+            .then(function(snapshot) {
+                let currentCount = snapshot.val() || 0;
+                
+                // Actualizar el contador en la interfaz
+                const visitCountElement = document.getElementById('visit-count');
+                if (visitCountElement) {
+                    visitCountElement.textContent = currentCount.toLocaleString();
+                }
+                
+                // Si es una nueva visita, incrementar el contador en Firebase
+                if (isNewVisit) {
+                    visitsRef.set(currentCount + 1);
+                    
+                    // Actualizar la interfaz con el nuevo valor
+                    if (visitCountElement) {
+                        visitCountElement.textContent = (currentCount + 1).toLocaleString();
+                    }
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al leer el contador de visitas:", error);
+                // Mostrar al menos el contador local en caso de error
+                showLocalVisitCounter();
+            });
+    } else {
+        console.warn("Firebase no está disponible. Usando contador local.");
+        showLocalVisitCounter();
+    }
+}
+
+/**
+ * Actualiza el contador global de validaciones correctas
+ */
+function updateCorrectCounter() {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const correctCountRef = firebase.database().ref('validations/correct');
+        
+        // Obtener el valor actual
+        correctCountRef.once('value')
+            .then(function(snapshot) {
+                let currentCount = snapshot.val() || 0;
+                
+                // Incrementar el contador
+                const newCount = currentCount + 1;
+                correctCountRef.set(newCount);
+                
+                // Actualizar la interfaz
+                const correctCountElement = document.getElementById('correct-count');
+                if (correctCountElement) {
+                    correctCountElement.textContent = newCount.toLocaleString();
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al actualizar el contador de validaciones correctas:", error);
+            });
+    }
+}
+
+/**
+ * Actualiza el contador global de validaciones incorrectas
+ */
+function updateIncorrectCounter() {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const incorrectCountRef = firebase.database().ref('validations/incorrect');
+        
+        // Obtener el valor actual
+        incorrectCountRef.once('value')
+            .then(function(snapshot) {
+                let currentCount = snapshot.val() || 0;
+                
+                // Incrementar el contador
+                const newCount = currentCount + 1;
+                incorrectCountRef.set(newCount);
+                
+                // Actualizar la interfaz
+                const incorrectCountElement = document.getElementById('incorrect-count');
+                if (incorrectCountElement) {
+                    incorrectCountElement.textContent = newCount.toLocaleString();
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al actualizar el contador de validaciones incorrectas:", error);
+            });
+    }
+}
+
+/**
+ * Carga los contadores de validaciones desde Firebase
+ */
+function loadValidationCounters() {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        // Cargar contador de validaciones correctas
+        firebase.database().ref('validations/correct').once('value')
+            .then(function(snapshot) {
+                const count = snapshot.val() || 0;
+                const correctCountElement = document.getElementById('correct-count');
+                if (correctCountElement) {
+                    correctCountElement.textContent = count.toLocaleString();
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al cargar el contador de validaciones correctas:", error);
+            });
+        
+        // Cargar contador de validaciones incorrectas
+        firebase.database().ref('validations/incorrect').once('value')
+            .then(function(snapshot) {
+                const count = snapshot.val() || 0;
+                const incorrectCountElement = document.getElementById('incorrect-count');
+                if (incorrectCountElement) {
+                    incorrectCountElement.textContent = count.toLocaleString();
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al cargar el contador de validaciones incorrectas:", error);
+            });
+    }
+}
