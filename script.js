@@ -112,6 +112,20 @@ const gamificationSystem = {
         return Math.round(basePoints * multipliers[difficultyLevel - 1]);
     },
     
+    // Añade puntos al jugador
+    addPoints: function(difficultyLevel) {
+        const points = this.calculatePoints(difficultyLevel);
+        this.updatePoints(points);
+        this.updateEnergyBar(5); // Incrementa la energía en 5 unidades
+    },
+    
+    // Resta puntos al jugador
+    subtractPoints: function(difficultyLevel) {
+        const points = this.calculatePoints(difficultyLevel);
+        this.updatePoints(-points);
+        this.updateEnergyBar(-10); // Disminuye la energía en 10 unidades
+    },
+    
     // Actualiza los puntos del jugador (positivo para aciertos, negativo para errores)
     updatePoints: function(points) {
         gameState.points += points;
@@ -197,14 +211,12 @@ const gamificationSystem = {
         const points = this.calculatePoints(gameState.currentDifficulty);
         
         if (isCorrect) {
-            // Sumar puntos y aumentar energía
+            // Sumar puntos y mostrar notificación
             this.updatePoints(points);
-            this.updateEnergyBar(5);
             this.showNotification(true, points);
         } else {
-            // Restar puntos y disminuir energía
-            this.updatePoints(-10);
-            this.updateEnergyBar(-10);
+            // Restar puntos y mostrar notificación
+            this.updatePoints(-points);
             this.showNotification(false);
         }
     },
@@ -2689,8 +2701,16 @@ function setupTable() {
     // Añadir event listeners a todos los campos de entrada para actualizar los totales en tiempo real
     setupRealTimeUpdates();
     
-    // Verificar si todos los campos están completos para establecer el estado inicial del botón
-    checkAllFieldsCompleted();
+    // Limpiar cualquier atributo de validación en los campos recién creados
+    const allInputs = document.querySelectorAll('input[id^="q-"], input[id^="w-"], input[id^="du-"], input[id^="dh-"], input[id^="ds-"]');
+    allInputs.forEach(input => {
+        if (!input.id.includes('-total')) {
+            input.removeAttribute('data-validation-status');
+            input.removeAttribute('data-validated');
+            input.classList.remove('correct', 'incorrect');
+            input.title = '';
+        }
+    });
 }
 
 /**
@@ -2812,11 +2832,12 @@ function checkAllFieldsCompleted() {
  * en cada proceso.
  */
 function validateResults() {
-    // Limpiar estados de validación previos para este conjunto de validaciones
+    // Limpiar estados de validación solo para campos que no han sido validados previamente
     const allInputs = document.querySelectorAll('input[id^="q-"], input[id^="w-"], input[id^="du-"], input[id^="dh-"], input[id^="ds-"]');
     allInputs.forEach(input => {
-        // Solo reiniciar los campos que no son de totales y no están ya validados
+        // No tocamos campos que ya han sido validados
         if (!input.id.includes('-total') && 
+            !input.hasAttribute('data-validated') &&
             (!input.hasAttribute('data-validation-status') || 
             input.getAttribute('data-validation-status') === 'none')) {
             input.removeAttribute('data-validation-status');
@@ -2932,15 +2953,30 @@ function validateResults() {
         ds: 0  // Cambio total de entropía es siempre cero en un ciclo cerrado
     };
     
+    // Variables para contar aciertos y errores en esta validación
+    let correctCount = 0;
+    let incorrectCount = 0;
+    
     // Validar valores ingresados por el usuario para cada proceso individual
     for (let i = 0; i < cycleData.length; i++) {
-        // Verificar cada valor
-        validateInput(`q-${i}`, correctValues[i].q);
-        validateInput(`w-${i}`, correctValues[i].w);
-        validateInput(`du-${i}`, correctValues[i].du);
-        validateInput(`dh-${i}`, correctValues[i].dh);
-        validateInput(`ds-${i}`, correctValues[i].ds);
+        // Verificar cada valor solo si no ha sido validado anteriormente
+        const fields = [`q-${i}`, `w-${i}`, `du-${i}`, `dh-${i}`, `ds-${i}`];
+        
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && (!field.hasAttribute('data-validated') || field.getAttribute('data-validated') !== 'true')) {
+                const isCorrect = validateInput(fieldId, correctValues[i][fieldId.split('-')[0]]);
+                if (isCorrect) {
+                    correctCount++;
+                } else {
+                    incorrectCount++;
+                }
+            }
+        });
     }
+    
+    // Log para depuración
+    console.log(`Validación completada: ${correctCount} aciertos, ${incorrectCount} errores`);
     
     // Actualizar los totales en base a los valores introducidos por el usuario
     // en lugar de usar los totales calculados teóricamente
@@ -3018,36 +3054,57 @@ function styleInfoInput(input) {
  */
 function validateInput(inputId, correctValue) {
     const input = document.getElementById(inputId);
-    if (!input) return;
+    if (!input) return false;
     
-    const userValue = parseFloat(input.value);
+    // Verificar si el campo ya ha sido validado previamente
+    if (input.hasAttribute('data-validated') && input.getAttribute('data-validated') === 'true') {
+        // Si ya está validado, no hacemos nada y retornamos el estado actual
+        return input.getAttribute('data-validation-status') === 'correct';
+    }
     
-    // Si el usuario no ha ingresado un valor, no validamos
-    if (isNaN(userValue)) {
+    // Obtener el valor ingresado por el usuario
+    let inputValue = input.value.trim();
+    
+    // Verificar si el valor está vacío
+    if (inputValue === '') {
+        input.setAttribute('data-validation-status', 'none');
         input.classList.remove('correct', 'incorrect');
-        return;
+        return false;
     }
     
-    // Caso especial: Si el valor correcto es cero
-    if (correctValue === 0) {
-        // Si el usuario puso cero, es correcto
-        if (userValue === 0) {
-            markAsCorrect(input, correctValue);
-        } else {
-            markAsIncorrect(input, correctValue);
-        }
-        return;
-    }
+    // Convertir a número y comparar con el valor correcto
+    inputValue = parseFloat(inputValue);
     
-    // Calcular error relativo
-    const relError = Math.abs((userValue - correctValue) / correctValue);
+    // Calcular la diferencia relativa
+    const difference = Math.abs(inputValue - correctValue);
+    const tolerance = Math.abs(correctValue * 0.05); // 5% de tolerancia
     
-    // Para errores relativos menores al 1%, consideramos correcto
-    if (relError < 0.01) {
+    // Determinar si la respuesta es correcta dentro de la tolerancia
+    const isCorrect = !isNaN(inputValue) && difference <= tolerance;
+    
+    // Marcar la respuesta como correcta o incorrecta
+    if (isCorrect) {
         markAsCorrect(input, correctValue);
+        
+        // Incrementar contador global de validaciones correctas
+        updateCorrectCounter();
+        
+        // Actualizar puntos según la dificultad
+        gamificationSystem.addPoints(gamificationSystem.difficultyLevel);
     } else {
         markAsIncorrect(input, correctValue);
+        
+        // Incrementar contador global de validaciones incorrectas
+        updateIncorrectCounter();
+        
+        // Restar puntos según la dificultad
+        gamificationSystem.subtractPoints(gamificationSystem.difficultyLevel);
     }
+    
+    // Marcar el campo como validado para evitar múltiples validaciones
+    input.setAttribute('data-validated', 'true');
+    
+    return isCorrect;
 }
 
 // Función auxiliar para marcar una respuesta como correcta
@@ -3066,23 +3123,9 @@ function markAsCorrect(input, correctValue) {
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, true);
     
-    // Incrementar el contador global de validaciones correctas
-    // Usamos un atributo data-validation-status para rastrear el estado actual del campo
-    const currentStatus = input.getAttribute('data-validation-status') || 'none';
-    
-    // Si el campo no tenía un estado previo o era incorrecto, lo contamos como una validación correcta nueva
-    if (currentStatus !== 'correct') {
-        updateCorrectCounter();
-        
-        // Si el campo estaba marcado como incorrecto previamente, restamos uno del contador de incorrectas
-        if (currentStatus === 'incorrect') {
-            updateIncorrectCounterAdjustment(-1);
-        }
-    }
-    
     // Marcar el campo como validado correctamente
     input.setAttribute('data-validation-status', 'correct');
-    input.setAttribute('data-validated', 'true');
+    input.setAttribute('data-validated', 'true'); // Establecer explícitamente como validado
 }
 
 // Función auxiliar para marcar una respuesta como incorrecta
@@ -3104,23 +3147,9 @@ function markAsIncorrect(input, correctValue) {
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, false);
     
-    // Incrementar el contador global de validaciones incorrectas
-    // Usamos un atributo data-validation-status para rastrear el estado actual del campo
-    const currentStatus = input.getAttribute('data-validation-status') || 'none';
-    
-    // Si el campo no tenía un estado previo o era correcto, lo contamos como una validación incorrecta nueva
-    if (currentStatus !== 'incorrect') {
-        updateIncorrectCounter();
-        
-        // Si el campo estaba marcado como correcto previamente, restamos uno del contador de correctas
-        if (currentStatus === 'correct') {
-            updateCorrectCounterAdjustment(-1);
-        }
-    }
-    
     // Marcar el campo como validado incorrectamente
     input.setAttribute('data-validation-status', 'incorrect');
-    input.setAttribute('data-validated', 'true');
+    input.setAttribute('data-validated', 'true'); // Establecer explícitamente como validado
 }
 
 /**
@@ -3832,7 +3861,7 @@ function updateIncorrectCounterAdjustment(adjustment) {
 function incrementCompletedCyclesCounter() {
     // Verificar si Firebase está disponible
     if (typeof firebase !== 'undefined' && firebase.database) {
-        const completedCountRef = firebase.database().ref('cycles/completed');
+        const completedCountRef = firebase.database().ref('completedCycles');
         
         // Usar una transacción para garantizar que el incremento sea atómico
         completedCountRef.transaction(function(currentCount) {
@@ -3849,7 +3878,13 @@ function incrementCompletedCyclesCounter() {
                 // Mostrar una notificación de felicitación al usuario
                 const notification = document.getElementById('result-notification');
                 if (notification) {
-                    notification.textContent = "¡Felicidades! Has completado correctamente todo el ciclo termodinámico";
+                    // Obtener traducción si está disponible
+                    let congratsMessage = "¡Felicidades! Has completado correctamente todo el ciclo termodinámico";
+                    if (typeof getTranslation === 'function') {
+                        congratsMessage = getTranslation('congratulations_cycle_complete');
+                    }
+                    
+                    notification.textContent = congratsMessage;
                     notification.className = "result-notification correct show";
                     
                     // Ocultar después de 4 segundos
@@ -3870,12 +3905,15 @@ function incrementCompletedCyclesCounter() {
 function loadCompletedCyclesCounter() {
     // Verificar si Firebase está disponible
     if (typeof firebase !== 'undefined' && firebase.database) {
-        // Cargar contador de ciclos completados
-        firebase.database().ref('cycles/completed').once('value')
+        const completedCountRef = firebase.database().ref('completedCycles');
+        
+        // Obtener el valor actual
+        completedCountRef.once('value')
             .then(function(snapshot) {
-                const count = snapshot.val() || 0;
+                // Actualizar la interfaz con el valor obtenido
                 const completedCountElement = document.getElementById('completed-count');
                 if (completedCountElement) {
+                    const count = snapshot.val() || 0;
                     completedCountElement.textContent = count.toLocaleString();
                 }
             })
@@ -3899,14 +3937,20 @@ function checkCycleCompletion() {
     
     // Verificar que todos los campos tienen un valor y están marcados como correctos
     processInputs.forEach(input => {
-        // Verificar que el campo tiene un valor
-        if (input.value.trim() === '' || !input.classList.contains('correct')) {
+        // Verificar que el campo tiene un valor y está marcado como correcto
+        if (input.value.trim() === '' || 
+            !input.hasAttribute('data-validation-status') || 
+            input.getAttribute('data-validation-status') !== 'correct') {
             isComplete = false;
         }
     });
     
+    // Agregamos un log para depuración
+    console.log("Ciclo completo y correcto: " + isComplete);
+    
     // Si el ciclo está completo, incrementar el contador global
     if (isComplete) {
+        console.log("Incrementando contador de ciclos completados");
         incrementCompletedCyclesCounter();
     }
     
