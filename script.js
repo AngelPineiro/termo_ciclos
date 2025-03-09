@@ -3028,7 +3028,7 @@ function shareExercise() {
     exerciseState.userAnswers[`dh-total`] = document.getElementById(`dh-total`).value;
     exerciseState.userAnswers[`ds-total`] = document.getElementById(`ds-total`).value;
     
-    // Convertir a JSON y comprimir usando LZString
+    // Comprimir los datos para hacer la URL más corta
     const stateJson = JSON.stringify(exerciseState);
     const compressedState = LZString.compressToEncodedURIComponent(stateJson);
     
@@ -3051,9 +3051,25 @@ function shareExercise() {
     const closeButtonText = getTranslation("close_button", currentLang);
     const shareOnText = getTranslation("share_on", currentLang);
     const shorteningMessage = getTranslation("shortening_url", currentLang) || "Acortando URL...";
+    const processingText = getTranslation("processing", currentLang) || "Procesando...";
     
-    // Crear HTML inicial para el diálogo
-    const createDialogHtml = (shareUrl, isShortened = false) => {
+    // Mostrar diálogo inicial con mensaje de procesamiento
+    const loadingDialogHtml = `
+        <div class="share-dialog">
+            <h3>${title}</h3>
+            <p>${processingText}</p>
+            <div class="loading-spinner"></div>
+        </div>
+    `;
+    
+    // Crear elemento para el diálogo
+    const dialogOverlay = document.createElement('div');
+    dialogOverlay.className = 'dialog-overlay';
+    dialogOverlay.innerHTML = loadingDialogHtml;
+    document.body.appendChild(dialogOverlay);
+    
+    // Crear HTML para el diálogo con URL
+    const createDialogHtml = (shareUrl) => {
         const displayUrl = shareUrl.length > 60 ? shareUrl.substring(0, 57) + '...' : shareUrl;
         
         // Crear HTML para botones de redes sociales
@@ -3089,74 +3105,56 @@ function shareExercise() {
                     <button id="copy-button">${copyButtonText}</button>
                 </div>
                 <p class="url-label">${displayUrl}</p>
-                ${isShortened ? '' : `<button id="shorten-button" class="shorten-button">${getTranslation("shorten_url", currentLang) || "Acortar URL"}</button>`}
                 ${socialButtons}
                 <button id="close-dialog">${closeButtonText}</button>
             </div>
         `;
     };
     
-    // Crear elemento para el diálogo
-    const dialogOverlay = document.createElement('div');
-    dialogOverlay.className = 'dialog-overlay';
-    dialogOverlay.innerHTML = createDialogHtml(longShareUrl);
-    document.body.appendChild(dialogOverlay);
-    
-    // Configurar eventos de los botones
-    document.getElementById('copy-button').addEventListener('click', function() {
-        const shareUrlInput = document.getElementById('share-url');
-        shareUrlInput.select();
-        document.execCommand('copy');
-        this.textContent = copiedMessage;
-    });
-    
-    // Agregar evento para el botón de acortar URL
-    const shortenButton = document.getElementById('shorten-button');
-    if (shortenButton) {
-        shortenButton.addEventListener('click', function() {
-            // Mostrar mensaje de carga
-            this.textContent = shorteningMessage;
-            this.disabled = true;
+    // Intentar generar una URL corta automáticamente
+    fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longShareUrl)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al acortar la URL');
+            }
+            return response.text();
+        })
+        .then(shortUrl => {
+            // Actualizar el diálogo con la URL corta
+            dialogOverlay.innerHTML = createDialogHtml(shortUrl);
             
-            // Usar TinyURL para acortar el enlace
-            fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longShareUrl)}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error al acortar la URL');
-                    }
-                    return response.text();
-                })
-                .then(shortUrl => {
-                    // Actualizar el diálogo con la URL corta
-                    dialogOverlay.innerHTML = createDialogHtml(shortUrl, true);
-                    
-                    // Volver a configurar eventos para los nuevos botones
-                    document.getElementById('copy-button').addEventListener('click', function() {
-                        const shareUrlInput = document.getElementById('share-url');
-                        shareUrlInput.select();
-                        document.execCommand('copy');
-                        this.textContent = copiedMessage;
-                    });
-                    
-                    document.getElementById('close-dialog').addEventListener('click', function() {
-                        document.body.removeChild(dialogOverlay);
-                    });
-                    
-                    // Auto-seleccionar la URL corta para facilitar la copia
-                    document.getElementById('share-url').select();
-                })
-                .catch(error => {
-                    console.error('Error al acortar la URL:', error);
-                    // Mostrar mensaje de error
-                    shortenButton.textContent = getTranslation("shorten_error", currentLang) || "Error al acortar";
-                    shortenButton.disabled = false;
-                });
+            // Configurar eventos de los botones
+            document.getElementById('copy-button').addEventListener('click', function() {
+                const shareUrlInput = document.getElementById('share-url');
+                shareUrlInput.select();
+                document.execCommand('copy');
+                this.textContent = copiedMessage;
+            });
+            
+            document.getElementById('close-dialog').addEventListener('click', function() {
+                document.body.removeChild(dialogOverlay);
+            });
+            
+            // Auto-seleccionar la URL para facilitar la copia
+            document.getElementById('share-url').select();
+        })
+        .catch(error => {
+            console.error('Error al acortar la URL:', error);
+            // Mostrar el diálogo con la URL larga en caso de error
+            dialogOverlay.innerHTML = createDialogHtml(longShareUrl);
+            
+            // Configurar eventos de los botones
+            document.getElementById('copy-button').addEventListener('click', function() {
+                const shareUrlInput = document.getElementById('share-url');
+                shareUrlInput.select();
+                document.execCommand('copy');
+                this.textContent = copiedMessage;
+            });
+            
+            document.getElementById('close-dialog').addEventListener('click', function() {
+                document.body.removeChild(dialogOverlay);
+            });
         });
-    }
-    
-    document.getElementById('close-dialog').addEventListener('click', function() {
-        document.body.removeChild(dialogOverlay);
-    });
 }
 
 /**
@@ -3169,17 +3167,61 @@ function loadSharedExercise() {
     
     if (stateParam) {
         try {
-            // Intentar decodificar el estado comprimido primero (nuevo formato)
-            let exerciseState;
+            console.log("Intentando cargar estado compartido. Longitud del estado:", stateParam.length);
             
+            // Inicializar variable para almacenar estado
+            let exerciseState = null;
+            let decodingMethod = '';
+            
+            // Probar diferentes métodos de decodificación 
+            // (esto nos permite compatibilidad con diferentes versiones de enlaces)
             try {
-                // Intentar descomprimir con LZString (nuevo formato)
+                // Método 1: Intentar descomprimir con LZString (nuevo formato)
                 const stateJson = LZString.decompressFromEncodedURIComponent(stateParam);
-                exerciseState = JSON.parse(stateJson);
+                if (stateJson) {
+                    exerciseState = JSON.parse(stateJson);
+                    decodingMethod = 'LZString';
+                    console.log("Estado decodificado exitosamente con LZString");
+                }
             } catch (e) {
-                // Si falla, intentar con el método antiguo (btoa/atob)
-                const stateJson = atob(stateParam);
-                exerciseState = JSON.parse(stateJson);
+                console.warn("No se pudo decodificar con LZString:", e);
+            }
+            
+            // Si el primer método falló, intentar con base64
+            if (!exerciseState) {
+                try {
+                    // Método 2: Intentar con base64 (método antiguo)
+                    const stateJson = atob(stateParam);
+                    exerciseState = JSON.parse(stateJson);
+                    decodingMethod = 'base64';
+                    console.log("Estado decodificado exitosamente con base64 (atob)");
+                } catch (e) {
+                    console.warn("No se pudo decodificar con base64:", e);
+                }
+            }
+            
+            // Si aún no tenemos un estado, intentar decodificar directamente como JSON
+            if (!exerciseState) {
+                try {
+                    // Método 3: Intentar decodificar directamente como JSON (por si acaso)
+                    exerciseState = JSON.parse(decodeURIComponent(stateParam));
+                    decodingMethod = 'directJSON';
+                    console.log("Estado decodificado exitosamente como JSON directo");
+                } catch (e) {
+                    console.warn("No se pudo decodificar directamente como JSON:", e);
+                }
+            }
+            
+            // Si no se pudo decodificar el estado con ningún método, lanzar error
+            if (!exerciseState) {
+                throw new Error("No se pudo decodificar el estado con ningún método");
+            }
+            
+            console.log("Estado cargado con éxito usando método:", decodingMethod);
+            
+            // Validar que exerciseState tiene la estructura esperada
+            if (!exerciseState.cycleType || !exerciseState.cycleData) {
+                throw new Error("El estado decodificado no tiene la estructura esperada");
             }
             
             // Restaurar el tipo de ciclo
@@ -3187,7 +3229,7 @@ function loadSharedExercise() {
             
             // Restaurar los datos del ciclo
             cycleData = exerciseState.cycleData;
-            numMoles = exerciseState.numMoles;
+            numMoles = exerciseState.numMoles || 1; // Valor por defecto si no existe
             
             // Dibujar el ciclo y mostrar datos
             drawGraph();
@@ -3219,20 +3261,27 @@ function loadSharedExercise() {
                 }, 2000);
             }
         } catch (error) {
-            console.error('Error al cargar el ejercicio compartido:', error);
+            console.error('Error detallado al cargar el ejercicio compartido:', error);
+            
+            // Generar un nuevo ciclo para que el usuario pueda trabajar
+            generateCycle();
             
             // Mostrar notificación de error
             const currentLang = getCurrentLanguage();
+            const errorMessage = getTranslation("exercise_load_error", currentLang) || "Error al cargar el ejercicio";
             const notificationElement = document.getElementById('result-notification');
             
             if (notificationElement) {
-                notificationElement.textContent = getTranslation("exercise_load_error", currentLang) || "Error al cargar el ejercicio";
+                notificationElement.textContent = errorMessage;
                 notificationElement.className = 'result-notification incorrect show';
                 
                 setTimeout(() => {
                     notificationElement.className = 'result-notification';
-                }, 2000);
+                }, 3000);
             }
+            
+            // Mostrar alerta con más detalles
+            alert(errorMessage + ". " + (getTranslation("link_corrupted", currentLang) || "El enlace podría estar corrupto."));
         }
     }
 }

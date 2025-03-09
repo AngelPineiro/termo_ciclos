@@ -859,4 +859,21 @@ button:hover {
     background-color: #94a3b8;
     cursor: wait;
     opacity: 0.7;
+}
+
+/* Spinner de carga para el diálogo de compartir */
+.loading-spinner {
+    display: block;
+    width: 40px;
+    height: 40px;
+    margin: 20px auto;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 } 

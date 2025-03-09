@@ -193,10 +193,12 @@ const translations = {
         shorten_url: 'Acortar URL',
         shortening_url: 'Acortando URL...',
         shorten_error: 'Error al acortar URL',
+        processing: 'Procesando...',
         
         // Notificaciones de carga de ejercicio
         exercise_loaded: 'Ejercicio cargado con éxito',
         exercise_load_error: 'Error al cargar el ejercicio',
+        link_corrupted: 'El enlace podría estar corrupto o mal formado',
     },
     
     // English
@@ -326,9 +328,9 @@ const translations = {
         brayton_description: 'The Brayton cycle is the ideal cycle for gas turbines and jet engines. It consists of adiabatic and isobaric processes.',
         brayton_processes: 'Processes:',
         brayton_process1: '1→2: Adiabatic compression in the compressor',
-        brayton_process2: '2→3: Heat addition at constant pressure in the combustion chamber',
+        brayton_process2: '2→3: Adition of chaleur a pression constante dans la chambre de combustion',
         brayton_process3: '3→4: Adiabatic expansion in the turbine',
-        brayton_process4: '4→1: Heat rejection at constant pressure',
+        brayton_process4: '4→1: Rechazo de calor a presión constante',
         brayton_efficiency: 'Efficiency:',
         brayton_efficiency_explanation: 'Where r is the pressure ratio and γ is the adiabatic coefficient.',
         
@@ -367,32 +369,34 @@ const translations = {
         progress_step3: 'Use "Import Progress" to load a previously saved progress file.',
         progress_step4: 'Although your progress is automatically saved in the browser between sessions, it is recommended to export it regularly to avoid data loss.',
         
-        // State variables note
+        // Note sur les variables d'état
         state_variables_note: '<strong>Important note:</strong> In a closed thermodynamic cycle, the total change in state functions (internal energy ΔU, enthalpy ΔH, and entropy ΔS) is always zero, as the system returns to its initial state. For the cycle total, the correct values for these variables always will be zero.',
         total_row_note: '<strong>"Total Cycle" row:</strong> This row shows the sum of the values entered in each column. The fields update automatically as you enter values in the table.',
         
-        // New key for export progress button tooltip
-        export_progress_tooltip: 'You must complete all fields in the table to export your progress',
+        // Nouvelle clé pour l'infobulle du bouton d'exportation de progression
+        export_progress_tooltip: 'Vous devez compléter tous les champs du tableau pour exporter votre progression',
         
-        // Share dialog
-        share_dialog_title: 'Share Exercise',
-        share_dialog_description: 'Copy the following link or share directly on social media:',
-        copy_button: 'Copy',
-        copied_message: 'Copied!',
-        close_button: 'Close',
-        share_on: 'Share on',
+        // Dialogue de partage
+        share_dialog_title: 'Partager l\'Exercice',
+        share_dialog_description: 'Copiez le lien suivant ou partagez directement sur les réseaux sociaux:',
+        copy_button: 'Copier',
+        copied_message: 'Copié !',
+        close_button: 'Fermer',
+        share_on: 'Partager sur',
         share_email: 'Email',
         share_whatsapp: 'WhatsApp',
         share_telegram: 'Telegram',
         share_twitter: 'Twitter',
         share_facebook: 'Facebook',
-        shorten_url: 'Shorten URL',
-        shortening_url: 'Shortening URL...',
-        shorten_error: 'Error shortening URL',
+        shorten_url: 'Raccourcir l\'URL',
+        shortening_url: 'Raccourcissement de l\'URL...',
+        shorten_error: 'Erreur lors du raccourcissement de l\'URL',
+        processing: 'Traitement en cours...',
         
         // Exercise loading notifications
         exercise_loaded: 'Exercise loaded successfully',
         exercise_load_error: 'Error loading exercise',
+        link_corrupted: 'The link might be corrupted or malformed',
     },
     
     // Galego
@@ -555,7 +559,7 @@ const translations = {
         // Advertencia sobre exportación
         export_warning: 'IMPORTANTE: O botón "Exportar Progreso" permanecerá desactivado ata que completes todos os campos da táboa. Só poderás exportar o teu progreso cando rematases completamente o exercicio.',
         
-        // Sección de progreso nas instrucións
+        // Sección de progresso nas instrucións
         progress_title: 'Gardar e Cargar Progreso',
         progress_text: 'Podes conservar o teu progreso usando estas funcións:',
         progress_step1: 'A opción "Exportar Progreso" permíteche descargar un arquivo cos teus puntos e logros actuais. Este botón só estará activo cando o exercicio estea completamente rematado.',
@@ -563,7 +567,7 @@ const translations = {
         progress_step3: 'Utiliza "Importar Progreso" para cargar un arquivo de progreso gardado anteriormente.',
         progress_step4: 'Aínda que o teu progreso se garda automaticamente no navegador entre sesións, recoméndase exportá-lo regularmente para evitar perdas de datos.',
         
-        // Nota sobre variables de estado
+        // Nota sobre variáveis de estado
         state_variables_note: '<strong>Nota importante:</strong> Nun ciclo termodinámico pechado, o cambio total das funcións de estado (enerxía interna ΔU, entalpía ΔH e entropía ΔS) sempre é cero, xa que o sistema volta ao seu estado inicial. Para o total do ciclo, os valores correctos destas variables sempre serán cero.',
         total_row_note: '<strong>Fila "Total do Ciclo":</strong> Esta fila mostra a suma dos valores introducidos en cada columna. Os campos actualízanse automaticamente a medida que introduces valores na táboa.',
         
@@ -585,10 +589,12 @@ const translations = {
         shorten_url: 'Acurtar URL',
         shortening_url: 'Acurtando URL...',
         shorten_error: 'Erro ao acurtar URL',
+        processing: 'Procesando...',
         
         // Notificacións de carga de exercicio
         exercise_loaded: 'Exercicio cargado con éxito',
         exercise_load_error: 'Erro ao cargar o exercicio',
+        link_corrupted: 'A ligazón podería estar corrupta ou mal formada',
     },
     
     // Français
@@ -780,10 +786,12 @@ const translations = {
         shorten_url: 'Raccourcir l\'URL',
         shortening_url: 'Raccourcissement de l\'URL...',
         shorten_error: 'Erreur lors du raccourcissement de l\'URL',
+        processing: 'Traitement en cours...',
         
         // Notifications de chargement d'exercice
         exercise_loaded: 'Exercice chargé avec succès',
         exercise_load_error: 'Erreur lors du chargement de l\'exercice',
+        link_corrupted: 'Le lien pourrait être corrompu ou mal formé',
     },
     
     // Português
@@ -976,10 +984,12 @@ const translations = {
         shorten_url: 'Encurtar URL',
         shortening_url: 'Encurtando URL...',
         shorten_error: 'Erro ao encurtar URL',
+        processing: 'Processando...',
         
         // Notificações de carregamento de exercício
         exercise_loaded: 'Exercício carregado com sucesso',
         exercise_load_error: 'Erro ao carregar o exercício',
+        link_corrupted: 'O link pode estar corrompido ou mal formado',
     },
     
     // 中文 (Chino)
@@ -1182,10 +1192,12 @@ const translations = {
         shorten_url: '缩短链接',
         shortening_url: '正在缩短链接...',
         shorten_error: '缩短链接出错',
+        processing: '处理中...',
         
         // 练习加载通知
         exercise_loaded: '练习加载成功',
         exercise_load_error: '加载练习时出错',
+        link_corrupted: '链接可能已损坏或格式不正确',
     },
     
     // 日本語 (Japonés)
@@ -1385,10 +1397,12 @@ const translations = {
         shorten_url: 'URLを短縮',
         shortening_url: 'URLを短縮中...',
         shorten_error: 'URL短縮エラー',
+        processing: '処理中...',
         
         // エクササイズ読み込み通知
         exercise_loaded: 'エクササイズが正常に読み込まれました',
         exercise_load_error: 'エクササイズの読み込み中にエラーが発生しました',
+        link_corrupted: 'リンクが破損しているか、形式が正しくない可能性があります',
     },
     // ... other languages ...
 };
