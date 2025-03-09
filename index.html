@@ -710,6 +710,27 @@
                 justify-content: center;
             }
         }
+        
+        /* Estilos para el contador de ciclos completados */
+        .completed-counter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background-color: rgba(79, 70, 229, 0.1); /* Color morado transparente */
+        }
+        
+        .completed-counter .counter-label {
+            color: #4338ca;
+            font-size: 0.9rem;
+        }
+        
+        .completed-counter .counter-value {
+            font-weight: bold;
+            color: #6366f1;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -750,6 +771,10 @@
                         <span class="counter-label" data-i18n="incorrect_validations">Incorrectas:</span>
                         <span id="incorrect-count" class="counter-value">0</span>
                     </div>
+                </div>
+                <div class="completed-counter">
+                    <span class="counter-label" data-i18n="cycles_completed">Ciclos completados:</span>
+                    <span id="completed-count" class="counter-value">0</span>
                 </div>
             </div>
         </div>

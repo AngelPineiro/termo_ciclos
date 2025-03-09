@@ -10,6 +10,7 @@ const translations = {
         visit_counter: 'Visitas:',
         correct_validations: 'Correctas:',
         incorrect_validations: 'Incorrectas:',
+        cycles_completed: 'Ciclos completados:',
         
         // Tipos de procesos
         adiabatic: 'Adiabático',
@@ -196,6 +197,7 @@ const translations = {
         visit_counter: 'Visits:',
         correct_validations: 'Correct:',
         incorrect_validations: 'Incorrect:',
+        cycles_completed: 'Cycles Completed:',
         
         // Process types
         adiabatic: 'Adiabatic',
@@ -735,6 +737,9 @@ const translations = {
         email: 'E-mail:',
         license: 'Licença Apache 2.0',
         visit_counter: 'Visitas:',
+        correct_validations: 'Correctas:',
+        incorrect_validations: 'Incorrectas:',
+        cycles_completed: 'Ciclos completados:',
         
         // Tipos de processos
         adiabatic: 'Adiabático',
@@ -916,6 +921,9 @@ const translations = {
         email: '电子邮件:',
         license: 'Apache 2.0 许可证',
         visit_counter: '访问量:',
+        correct_validations: '正确:',
+        incorrect_validations: '错误:',
+        cycles_completed: '循环完成:',
         
         // Tipos de procesos
         adiabatic: '绝热的',

@@ -348,6 +348,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar los contadores de validaciones correctas e incorrectas
     loadValidationCounters();
     
+    // Cargar el contador de ciclos completados
+    loadCompletedCyclesCounter();
+    
     // Configurar manejadores de eventos
     const generateBtn = document.getElementById('generate-cycle-btn');
     if (generateBtn) {
@@ -534,6 +537,13 @@ function generateCycle() {
         console.log("Limpiando variables de ejercicio compartido para nuevo ciclo");
         window.sharedExerciseVariables = null;
     }
+    
+    // Limpiar estados de validación previos
+    document.querySelectorAll('input[data-validation-status]').forEach(input => {
+        input.removeAttribute('data-validation-status');
+        input.removeAttribute('data-validated');
+        input.classList.remove('correct', 'incorrect');
+    });
 
     console.log("Generando ciclo termodinámico con algoritmo robusto...");
     
@@ -2802,6 +2812,17 @@ function checkAllFieldsCompleted() {
  * en cada proceso.
  */
 function validateResults() {
+    // Limpiar estados de validación previos para este conjunto de validaciones
+    const allInputs = document.querySelectorAll('input[id^="q-"], input[id^="w-"], input[id^="du-"], input[id^="dh-"], input[id^="ds-"]');
+    allInputs.forEach(input => {
+        // Solo reiniciar los campos que no son de totales y no están ya validados
+        if (!input.id.includes('-total') && 
+            (!input.hasAttribute('data-validation-status') || 
+            input.getAttribute('data-validation-status') === 'none')) {
+            input.removeAttribute('data-validation-status');
+        }
+    });
+    
     // Calcular la dificultad del ciclo actual
     const difficultyLevel = gamificationSystem.calculateDifficulty(cycleData);
     gamificationSystem.updateDifficultyDisplay(difficultyLevel);
@@ -2819,7 +2840,7 @@ function validateResults() {
         // Calcular cambios de temperatura y volumen
         const deltaT = nextPoint.t - point.t;
         const deltaV = nextPoint.v - point.v;
-        
+        const deltaP = nextPoint.p - point.p;
         // Calcular valores según tipo de proceso
         let q, w, du, dh, ds;
         
@@ -2848,9 +2869,9 @@ function validateResults() {
                 // En isotérmico deltaT = 0, por lo que du = 0
                 du = 0;
                 dh = 0;
-                // Trabajo en isotérmico: w = -nRT·ln(V2/V1)
-                w = -numMoles * R * point.t * Math.log(nextPoint.v / point.v);
-                q = -w; // Primera ley: q = -w cuando du = 0
+                // Trabajo en isotérmico: w = nRT·ln(V2/V1)
+                w = numMoles * R * point.t * Math.log(nextPoint.v / point.v);
+                q = w; // Primera ley: q = -w cuando du = 0
                 ds = q / point.t;
                 break;
                 
@@ -2865,12 +2886,16 @@ function validateResults() {
                 
             case 4: // Lineal P-V
                 // Cálculos aproximados para proceso lineal
+                const m = deltaP / deltaV; // units: kPa/L = 10^6 Pa/m^3
+                const a = point.p + m * deltaV; // units: kPa
+
                 du = numMoles * cv * deltaT;
-                w = (point.p + nextPoint.p) / 2 * 1000 * deltaV / 1000; // kPa·L a J
+                w = a * deltaV + m * (nextPoint.v**2 - point.v**2) / 2; // units: J
+                //w = (point.p + nextPoint.p) / 2 * 1000 * deltaV / 1000; // kPa·L a J
                 q = du + w; // Primera ley: q = du + w
-                dh = du + point.p * 1000 * deltaV / 1000;
+                dh = numMoles * cp * deltaT;
                 // Aproximación de entropía
-                ds = q / ((point.t + nextPoint.t) / 2);
+                ds = numMoles * cv * Math.log(nextPoint.t / point.t) + numMoles * R * Math.log(nextPoint.v / point.v);
                 break;
         }
         
@@ -2923,6 +2948,9 @@ function validateResults() {
     
     // Verificar si todos los campos están completos después de la validación
     checkAllFieldsCompleted();
+    
+    // Verificar si el ciclo está completo y correcto para incrementar el contador
+    checkCycleCompletion();
 }
 
 /**
@@ -3038,11 +3066,23 @@ function markAsCorrect(input, correctValue) {
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, true);
     
-    // Incrementar el contador global de validaciones correctas si es la primera vez que se valida este campo
-    if (!input.hasAttribute('data-validated') || input.getAttribute('data-validated') !== 'true') {
+    // Incrementar el contador global de validaciones correctas
+    // Usamos un atributo data-validation-status para rastrear el estado actual del campo
+    const currentStatus = input.getAttribute('data-validation-status') || 'none';
+    
+    // Si el campo no tenía un estado previo o era incorrecto, lo contamos como una validación correcta nueva
+    if (currentStatus !== 'correct') {
         updateCorrectCounter();
-        input.setAttribute('data-validated', 'true');
+        
+        // Si el campo estaba marcado como incorrecto previamente, restamos uno del contador de incorrectas
+        if (currentStatus === 'incorrect') {
+            updateIncorrectCounterAdjustment(-1);
+        }
     }
+    
+    // Marcar el campo como validado correctamente
+    input.setAttribute('data-validation-status', 'correct');
+    input.setAttribute('data-validated', 'true');
 }
 
 // Función auxiliar para marcar una respuesta como incorrecta
@@ -3064,11 +3104,23 @@ function markAsIncorrect(input, correctValue) {
     // Procesar la validación en el sistema de gamificación
     gamificationSystem.processValidation(input.id, false);
     
-    // Incrementar el contador global de validaciones incorrectas si es la primera vez que se valida este campo
-    if (!input.hasAttribute('data-validated') || input.getAttribute('data-validated') !== 'true') {
+    // Incrementar el contador global de validaciones incorrectas
+    // Usamos un atributo data-validation-status para rastrear el estado actual del campo
+    const currentStatus = input.getAttribute('data-validation-status') || 'none';
+    
+    // Si el campo no tenía un estado previo o era correcto, lo contamos como una validación incorrecta nueva
+    if (currentStatus !== 'incorrect') {
         updateIncorrectCounter();
-        input.setAttribute('data-validated', 'true');
+        
+        // Si el campo estaba marcado como correcto previamente, restamos uno del contador de correctas
+        if (currentStatus === 'correct') {
+            updateCorrectCounterAdjustment(-1);
+        }
     }
+    
+    // Marcar el campo como validado incorrectamente
+    input.setAttribute('data-validation-status', 'incorrect');
+    input.setAttribute('data-validated', 'true');
 }
 
 /**
@@ -3637,24 +3689,21 @@ function updateCorrectCounter() {
     if (typeof firebase !== 'undefined' && firebase.database) {
         const correctCountRef = firebase.database().ref('validations/correct');
         
-        // Obtener el valor actual
-        correctCountRef.once('value')
-            .then(function(snapshot) {
-                let currentCount = snapshot.val() || 0;
-                
-                // Incrementar el contador
-                const newCount = currentCount + 1;
-                correctCountRef.set(newCount);
-                
-                // Actualizar la interfaz
+        // Usar una transacción para garantizar que el incremento sea atómico
+        correctCountRef.transaction(function(currentCount) {
+            // Si el contador no existe aún, inicializarlo en 0
+            return (currentCount || 0) + 1;
+        }).then(function(result) {
+            if (result.committed) {
+                // Actualizar la interfaz con el nuevo valor
                 const correctCountElement = document.getElementById('correct-count');
                 if (correctCountElement) {
-                    correctCountElement.textContent = newCount.toLocaleString();
+                    correctCountElement.textContent = result.snapshot.val().toLocaleString();
                 }
-            })
-            .catch(function(error) {
-                console.error("Error al actualizar el contador de validaciones correctas:", error);
-            });
+            }
+        }).catch(function(error) {
+            console.error("Error al actualizar el contador de validaciones correctas:", error);
+        });
     }
 }
 
@@ -3666,24 +3715,21 @@ function updateIncorrectCounter() {
     if (typeof firebase !== 'undefined' && firebase.database) {
         const incorrectCountRef = firebase.database().ref('validations/incorrect');
         
-        // Obtener el valor actual
-        incorrectCountRef.once('value')
-            .then(function(snapshot) {
-                let currentCount = snapshot.val() || 0;
-                
-                // Incrementar el contador
-                const newCount = currentCount + 1;
-                incorrectCountRef.set(newCount);
-                
-                // Actualizar la interfaz
+        // Usar una transacción para garantizar que el incremento sea atómico
+        incorrectCountRef.transaction(function(currentCount) {
+            // Si el contador no existe aún, inicializarlo en 0
+            return (currentCount || 0) + 1;
+        }).then(function(result) {
+            if (result.committed) {
+                // Actualizar la interfaz con el nuevo valor
                 const incorrectCountElement = document.getElementById('incorrect-count');
                 if (incorrectCountElement) {
-                    incorrectCountElement.textContent = newCount.toLocaleString();
+                    incorrectCountElement.textContent = result.snapshot.val().toLocaleString();
                 }
-            })
-            .catch(function(error) {
-                console.error("Error al actualizar el contador de validaciones incorrectas:", error);
-            });
+            }
+        }).catch(function(error) {
+            console.error("Error al actualizar el contador de validaciones incorrectas:", error);
+        });
     }
 }
 
@@ -3705,7 +3751,7 @@ function loadValidationCounters() {
             .catch(function(error) {
                 console.error("Error al cargar el contador de validaciones correctas:", error);
             });
-        
+            
         // Cargar contador de validaciones incorrectas
         firebase.database().ref('validations/incorrect').once('value')
             .then(function(snapshot) {
@@ -3718,5 +3764,151 @@ function loadValidationCounters() {
             .catch(function(error) {
                 console.error("Error al cargar el contador de validaciones incorrectas:", error);
             });
+            
+        // Cargar contador de ciclos completados
+        loadCompletedCyclesCounter();
     }
+}
+
+/**
+ * Ajusta el contador global de validaciones correctas
+ * @param {number} adjustment - Valor para ajustar el contador (+1, -1, etc.)
+ */
+function updateCorrectCounterAdjustment(adjustment) {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const correctCountRef = firebase.database().ref('validations/correct');
+        
+        // Usar una transacción para garantizar que el ajuste sea atómico
+        correctCountRef.transaction(function(currentCount) {
+            // Si el contador no existe aún, inicializarlo en 0
+            const newValue = Math.max(0, (currentCount || 0) + adjustment);
+            return newValue;
+        }).then(function(result) {
+            if (result.committed) {
+                // Actualizar la interfaz con el nuevo valor
+                const correctCountElement = document.getElementById('correct-count');
+                if (correctCountElement) {
+                    correctCountElement.textContent = result.snapshot.val().toLocaleString();
+                }
+            }
+        }).catch(function(error) {
+            console.error("Error al ajustar el contador de validaciones correctas:", error);
+        });
+    }
+}
+
+/**
+ * Ajusta el contador global de validaciones incorrectas
+ * @param {number} adjustment - Valor para ajustar el contador (+1, -1, etc.)
+ */
+function updateIncorrectCounterAdjustment(adjustment) {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const incorrectCountRef = firebase.database().ref('validations/incorrect');
+        
+        // Usar una transacción para garantizar que el ajuste sea atómico
+        incorrectCountRef.transaction(function(currentCount) {
+            // Si el contador no existe aún, inicializarlo en 0
+            const newValue = Math.max(0, (currentCount || 0) + adjustment);
+            return newValue;
+        }).then(function(result) {
+            if (result.committed) {
+                // Actualizar la interfaz con el nuevo valor
+                const incorrectCountElement = document.getElementById('incorrect-count');
+                if (incorrectCountElement) {
+                    incorrectCountElement.textContent = result.snapshot.val().toLocaleString();
+                }
+            }
+        }).catch(function(error) {
+            console.error("Error al ajustar el contador de validaciones incorrectas:", error);
+        });
+    }
+}
+
+/**
+ * Incrementa el contador global de ciclos completados
+ */
+function incrementCompletedCyclesCounter() {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        const completedCountRef = firebase.database().ref('cycles/completed');
+        
+        // Usar una transacción para garantizar que el incremento sea atómico
+        completedCountRef.transaction(function(currentCount) {
+            // Si el contador no existe aún, inicializarlo en 0
+            return (currentCount || 0) + 1;
+        }).then(function(result) {
+            if (result.committed) {
+                // Actualizar la interfaz con el nuevo valor
+                const completedCountElement = document.getElementById('completed-count');
+                if (completedCountElement) {
+                    completedCountElement.textContent = result.snapshot.val().toLocaleString();
+                }
+                
+                // Mostrar una notificación de felicitación al usuario
+                const notification = document.getElementById('result-notification');
+                if (notification) {
+                    notification.textContent = "¡Felicidades! Has completado correctamente todo el ciclo termodinámico";
+                    notification.className = "result-notification correct show";
+                    
+                    // Ocultar después de 4 segundos
+                    setTimeout(function() {
+                        notification.className = "result-notification";
+                    }, 4000);
+                }
+            }
+        }).catch(function(error) {
+            console.error("Error al actualizar el contador de ciclos completados:", error);
+        });
+    }
+}
+
+/**
+ * Carga el contador de ciclos completados desde Firebase
+ */
+function loadCompletedCyclesCounter() {
+    // Verificar si Firebase está disponible
+    if (typeof firebase !== 'undefined' && firebase.database) {
+        // Cargar contador de ciclos completados
+        firebase.database().ref('cycles/completed').once('value')
+            .then(function(snapshot) {
+                const count = snapshot.val() || 0;
+                const completedCountElement = document.getElementById('completed-count');
+                if (completedCountElement) {
+                    completedCountElement.textContent = count.toLocaleString();
+                }
+            })
+            .catch(function(error) {
+                console.error("Error al cargar el contador de ciclos completados:", error);
+            });
+    }
+}
+
+/**
+ * Verifica si todos los campos del ciclo termodinámico están completados y correctos.
+ * Si todos están correctos, incrementa el contador global de ciclos completados.
+ * @returns {boolean} true si todos los campos están correctos, false en caso contrario
+ */
+function checkCycleCompletion() {
+    // Obtener todos los campos de entrada excepto los totales
+    const processInputs = document.querySelectorAll('input[id^="q-"]:not([id="q-total"]), input[id^="w-"]:not([id="w-total"]), input[id^="du-"]:not([id="du-total"]), input[id^="dh-"]:not([id="dh-total"]), input[id^="ds-"]:not([id="ds-total"])');
+    
+    // Variable para seguir si el ciclo está completo
+    let isComplete = true;
+    
+    // Verificar que todos los campos tienen un valor y están marcados como correctos
+    processInputs.forEach(input => {
+        // Verificar que el campo tiene un valor
+        if (input.value.trim() === '' || !input.classList.contains('correct')) {
+            isComplete = false;
+        }
+    });
+    
+    // Si el ciclo está completo, incrementar el contador global
+    if (isComplete) {
+        incrementCompletedCyclesCounter();
+    }
+    
+    return isComplete;
 }
