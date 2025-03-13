@@ -12,6 +12,10 @@ const translations = {
         incorrect_validations: 'Incorrectas:',
         cycles_completed: 'Ciclos completados:',
         
+        // Mensajes de feedback para validación
+        correct_answer: '¡Excelente trabajo! Tu respuesta es correcta. +{points} puntos',
+        incorrect_answer: 'Respuesta incorrecta. Revisa tus cálculos e inténtalo de nuevo. ¡No te rindas!',
+        
         // Tipos de procesos
         adiabatic: 'Adiabático',
         isochoric: 'Isocórico',
@@ -199,6 +203,10 @@ const translations = {
         incorrect_validations: 'Incorrect:',
         cycles_completed: 'Cycles Completed:',
         
+        // Feedback messages for validation
+        correct_answer: 'Excellent work! Your answer is correct. +{points} points',
+        incorrect_answer: 'Incorrect answer. Review your calculations and try again. Don\'t give up!',
+        
         // Process types
         adiabatic: 'Adiabatic',
         isochoric: 'Isochoric',
@@ -380,6 +388,10 @@ const translations = {
         license: 'Licenza Apache 2.0',
         visit_counter: 'Visitas:',
         
+        // Mensaxes de retroalimentación para validación
+        correct_answer: '¡Excelente traballo! A túa resposta é correcta. +{points} puntos',
+        incorrect_answer: 'Resposta incorrecta. Revisa os teus cálculos e inténtao de novo. ¡Non te rendas!',
+        
         // Tipos de procesos
         adiabatic: 'Adiabático',
         isochoric: 'Isocórico',
@@ -542,7 +554,7 @@ const translations = {
         progress_step1: 'A opción "Exportar Progreso" permíteche descargar un arquivo cos teus puntos e logros actuais. Este botón só estará activo cando o exercicio estea completamente rematado.',
         progress_step2: 'Debes completar todos os valores de Q, W, ΔU, ΔH e ΔS para cada proceso do ciclo antes de poder exportar o teu progreso.',
         progress_step3: 'Utiliza "Importar Progreso" para cargar un arquivo de progreso gardado anteriormente.',
-        progress_step4: 'Aínda que o teu progreso se garda automaticamente no navegador entre sesións, recoméndase exportalo regularmente para evitar perdas de datos.',
+        progress_step4: 'Aínda que o teu progreso se garda automaticamente no navegador entre sesións, recoméndase exportá-lo regularmente para evitar perdas de datos.',
         
         // Nota sobre variables de estado
         state_variables_note: '<strong>Nota importante:</strong> Nun ciclo termodinámico pechado, o cambio total das funcións de estado (enerxía interna ΔU, entalpía ΔH e entropía ΔS) sempre é cero, xa que o sistema volta ao seu estado inicial. Para o total do ciclo, os valores correctos destas variables sempre serán cero.',
@@ -560,6 +572,10 @@ const translations = {
         email: 'Courriel:',
         license: 'Licence Apache 2.0',
         visit_counter: 'Visites:',
+        
+        // Messages de feedback pour validation
+        correct_answer: 'Excellent travail ! Votre réponse est correcte. +{points} points',
+        incorrect_answer: 'Réponse incorrecte. Révisez vos calculs et réessayez. Ne renoncez pas !',
         
         // Types de processus
         adiabatic: 'Adiabatique',
@@ -740,6 +756,10 @@ const translations = {
         correct_validations: 'Correctas:',
         incorrect_validations: 'Incorrectas:',
         cycles_completed: 'Ciclos completados:',
+        
+        // Mensagens de feedback para validação
+        correct_answer: 'Excelente trabalho! Sua resposta está correta. +{points} pontos',
+        incorrect_answer: 'Resposta incorreta. Revise seus cálculos e tente novamente. Não desista!',
         
         // Tipos de processos
         adiabatic: 'Adiabático',
@@ -924,6 +944,10 @@ const translations = {
         correct_validations: '正确:',
         incorrect_validations: '错误:',
         cycles_completed: '循环完成:',
+        
+        // 验证反馈消息
+        correct_answer: '出色的工作！你的答案是正确的。+{points} 分',
+        incorrect_answer: '不正确的答案。检查你的计算并再次尝试。不要放弃！',
         
         // Tipos de procesos
         adiabatic: '绝热的',
@@ -1115,6 +1139,10 @@ const translations = {
         email: 'メール:',
         license: 'Apache 2.0 ライセンス',
         visit_counter: '訪問数:',
+        
+        // 検証フィードバックメッセージ
+        correct_answer: '素晴らしい仕事です！あなたの答えは正解です。+{points} ポイント',
+        incorrect_answer: '不正解です。計算を見直して、もう一度挑戦してください。諦めないでください！',
         
         // Tipos de procesos
         adiabatic: '断熱過程',

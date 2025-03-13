@@ -393,6 +393,21 @@ const gamificationSystem = {
         
         // Guardar el estado reiniciado
         this.saveGameState();
+    },
+    
+    // Disminuye la energía del jugador
+    decreaseEnergy: function(amount) {
+        gameState.energy -= amount;
+        if (gameState.energy < 0) gameState.energy = 0;
+        if (gameState.energy > 100) gameState.energy = 100;
+        
+        const energyBar = document.getElementById('energy-bar');
+        if (energyBar) {
+            energyBar.style.width = `${gameState.energy}%`;
+        }
+        
+        // Guardar el estado actualizado
+        this.saveGameState();
     }
 };
 
@@ -409,6 +424,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cargar el contador de ciclos completados
     loadCompletedCyclesCounter();
+    
+    // Añadir estilos CSS para los inputs validados
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .correct {
+            background-color: rgba(56, 161, 105, 0.2) !important;
+        }
+        
+        .incorrect {
+            background-color: rgba(229, 62, 62, 0.2) !important;
+        }
+    `;
+    document.head.appendChild(styleElement);
     
     // Configurar manejadores de eventos
     const generateBtn = document.getElementById('generate-cycle-btn');
@@ -596,6 +624,10 @@ function generateCycle() {
         console.log("Limpiando variables de ejercicio compartido para nuevo ciclo");
         window.sharedExerciseVariables = null;
     }
+    
+    // Restablecer el atributo de ciclo contabilizado
+    document.body.removeAttribute('data-cycle-counted');
+    console.log("Restableciendo contador de ciclos completados para el nuevo ciclo");
     
     // Limpiar estados de validación previos
     document.querySelectorAll('input[data-validation-status]').forEach(input => {
@@ -2646,9 +2678,24 @@ function displayProblemData() {
         tableHTML += `
             <tr>
                 <td>${pointNumber}</td>
-                <td>${variables.p ? point.p.toFixed(2) : '—'}</td>
-                <td>${variables.v ? point.v.toFixed(4) : '—'}</td>
-                <td>${variables.t ? point.t.toFixed(2) : '—'}</td>
+                <td>${variables.p ? 
+                    // Si es true, mostrar el valor como texto
+                    point.p.toFixed(2) : 
+                    // Si es false, mostrar un campo editable para que el usuario lo calcule
+                    `<input type="number" step="any" id="p-${i}" class="point-input" placeholder="0" data-correct-value="${point.p.toFixed(2)}">`}
+                </td>
+                <td>${variables.v ? 
+                    // Si es true, mostrar el valor como texto
+                    point.v.toFixed(4) : 
+                    // Si es false, mostrar un campo editable para que el usuario lo calcule
+                    `<input type="number" step="any" id="v-${i}" class="point-input" placeholder="0" data-correct-value="${point.v.toFixed(4)}">`}
+                </td>
+                <td>${variables.t ? 
+                    // Si es true, mostrar el valor como texto
+                    point.t.toFixed(2) : 
+                    // Si es false, mostrar un campo editable para que el usuario lo calcule
+                    `<input type="number" step="any" id="t-${i}" class="point-input" placeholder="0" data-correct-value="${point.t.toFixed(2)}">`}
+                </td>
             </tr>
         `;
     }
@@ -2670,6 +2717,17 @@ function displayProblemData() {
     
     // Ahora configuramos la tabla de cálculos
     setupTable();
+    
+    // Comentamos el código que añade validación automática
+    /*
+    // Añadir eventos para la validación de los campos de puntos editables
+    const pointInputs = document.querySelectorAll('.point-input');
+    pointInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            validatePointInput(this.id, parseFloat(this.getAttribute('data-correct-value')));
+        });
+    });
+    */
 }
 
 /**
@@ -2782,34 +2840,54 @@ function updateRealTimeTotals() {
     
     // Obtener todos los valores introducidos por el usuario
     for (let i = 0; i < cycleData.length; i++) {
-        // Obtener los campos de entrada
-        const qInput = document.getElementById(`q-${i}`);
-        const wInput = document.getElementById(`w-${i}`);
-        const duInput = document.getElementById(`du-${i}`);
-        const dhInput = document.getElementById(`dh-${i}`);
-        const dsInput = document.getElementById(`ds-${i}`);
+        // Intentar obtener elementos por ID (pueden ser inputs o divs validados)
+        const qElement = document.getElementById(`q-${i}`);
+        const wElement = document.getElementById(`w-${i}`);
+        const duElement = document.getElementById(`du-${i}`);
+        const dhElement = document.getElementById(`dh-${i}`);
+        const dsElement = document.getElementById(`ds-${i}`);
         
-        // Acumular valores si están disponibles
-        if (qInput && !isNaN(parseFloat(qInput.value))) totalQ += parseFloat(qInput.value);
-        if (wInput && !isNaN(parseFloat(wInput.value))) totalW += parseFloat(wInput.value);
-        if (duInput && !isNaN(parseFloat(duInput.value))) totalDU += parseFloat(duInput.value);
-        if (dhInput && !isNaN(parseFloat(dhInput.value))) totalDH += parseFloat(dhInput.value);
-        if (dsInput && !isNaN(parseFloat(dsInput.value))) totalDS += parseFloat(dsInput.value);
+        // Función auxiliar para obtener el valor, teniendo en cuenta si ha sido validado
+        const getValue = (element) => {
+            if (!element) return 0;
+            
+            // Si es un div validado
+            if (element.tagName === 'DIV' && element.classList.contains('validated-field')) {
+                return element.hasAttribute('data-user-value') ? 
+                    parseFloat(element.getAttribute('data-user-value')) : 0;
+            }
+            
+            // Si es un input validado
+            if (element.hasAttribute('data-validated') && element.getAttribute('data-validated') === 'true') {
+                return element.hasAttribute('data-user-value') ? 
+                    parseFloat(element.getAttribute('data-user-value')) : 
+                    parseFloat(element.value);
+            }
+            
+            // Si es un input normal
+            return !isNaN(parseFloat(element.value)) ? parseFloat(element.value) : 0;
+        };
+        
+        // Acumular valores
+        totalQ += getValue(qElement);
+        totalW += getValue(wElement);
+        totalDU += getValue(duElement);
+        totalDH += getValue(dhElement);
+        totalDS += getValue(dsElement);
     }
     
     // Actualizar los campos de totales
-    const qTotalInput = document.getElementById('q-total');
-    const wTotalInput = document.getElementById('w-total');
-    const duTotalInput = document.getElementById('du-total');
-    const dhTotalInput = document.getElementById('dh-total');
-    const dsTotalInput = document.getElementById('ds-total');
+    const totalQInput = document.getElementById('q-total');
+    const totalWInput = document.getElementById('w-total');
+    const totalDUInput = document.getElementById('du-total');
+    const totalDHInput = document.getElementById('dh-total');
+    const totalDSInput = document.getElementById('ds-total');
     
-    // Actualizar los valores si están disponibles
-    if (qTotalInput) qTotalInput.value = totalQ.toFixed(1);
-    if (wTotalInput) wTotalInput.value = totalW.toFixed(1);
-    if (duTotalInput) duTotalInput.value = totalDU.toFixed(1);
-    if (dhTotalInput) dhTotalInput.value = totalDH.toFixed(1);
-    if (dsTotalInput) dsTotalInput.value = totalDS.toFixed(3);
+    if (totalQInput) totalQInput.value = totalQ.toFixed(2);
+    if (totalWInput) totalWInput.value = totalW.toFixed(2);
+    if (totalDUInput) totalDUInput.value = totalDU.toFixed(2);
+    if (totalDHInput) totalDHInput.value = totalDH.toFixed(2);
+    if (totalDSInput) totalDSInput.value = totalDS.toFixed(2);
     
     // Verificar si todos los campos están completos
     checkAllFieldsCompleted();
@@ -2820,17 +2898,32 @@ function updateRealTimeTotals() {
  * y habilita o deshabilita el botón de exportar progreso en consecuencia
  */
 function checkAllFieldsCompleted() {
-    const inputs = document.querySelectorAll('.process-input:not(.total-input)');
+    // Seleccionar todos los campos que deben ser completados por el usuario
+    const processElements = Array.from(document.querySelectorAll('.process-input:not(.total-input)'));
+    const pointElements = Array.from(document.querySelectorAll('.point-input'));
+    
+    // Seleccionar también los divs validados (que reemplazaron a inputs)
+    const validatedDivs = Array.from(document.querySelectorAll('.validated-field'));
+    
+    // Combinar todos los elementos que necesitamos verificar
+    const allElements = [...processElements, ...pointElements, ...validatedDivs];
+    
     const exportBtn = document.getElementById('export-progress-btn');
     
     // Si no existe el botón, salir
     if (!exportBtn) return;
     
-    // Verificar si todos los campos tienen un valor
+    // Verificar si todos los campos tienen un valor válido
     let allCompleted = true;
     
-    inputs.forEach(input => {
-        if (!input.value || input.value === '') {
+    allElements.forEach(element => {
+        if (element.classList.contains('validated-field')) {
+            // Los elementos validados ya están completos
+            return;
+        }
+        
+        // Para los inputs normales, verificar si tienen un valor
+        if (!element.value || element.value === '') {
             allCompleted = false;
         }
     });
@@ -2845,27 +2938,7 @@ function checkAllFieldsCompleted() {
         exportBtn.title = "Debes completar todos los campos de la tabla para poder exportar tu progreso";
     }
     
-    // Añadir event listener para cuando se intenta hacer clic en el botón deshabilitado
-    if (!allCompleted && !exportBtn.hasAttribute('data-listener-added')) {
-        exportBtn.addEventListener('click', function(event) {
-            if (this.disabled) {
-                // Mostrar la notificación
-                const notification = document.getElementById('result-notification');
-                if (notification) {
-                    notification.textContent = "Debes completar todos los campos de la tabla para poder exportar tu progreso";
-                    notification.className = "result-notification incorrect show";
-                    
-                    // Ocultar después de 3 segundos
-                    setTimeout(function() {
-                        notification.className = "result-notification";
-                    }, 3000);
-                }
-            }
-        });
-        
-        // Marcar que ya se agregó el listener para no añadirlo múltiples veces
-        exportBtn.setAttribute('data-listener-added', 'true');
-    }
+    return allCompleted;
 }
 
 /**
@@ -2888,6 +2961,14 @@ function validateResults() {
             (!input.hasAttribute('data-validation-status') || 
             input.getAttribute('data-validation-status') === 'none')) {
             input.removeAttribute('data-validation-status');
+        }
+    });
+    
+    // Validar también los inputs de la tabla de puntos (PVT)
+    const pointInputs = document.querySelectorAll('.point-input');
+    pointInputs.forEach(input => {
+        if (!input.hasAttribute('data-validated') || input.getAttribute('data-validated') !== 'true') {
+            validatePointInput(input.id, parseFloat(input.getAttribute('data-correct-value')));
         }
     });
     
@@ -3124,7 +3205,7 @@ function validateInput(inputId, correctValue) {
     
     // Calcular la diferencia relativa
     const difference = Math.abs(inputValue - correctValue);
-    const tolerance = Math.abs(correctValue * 0.05); // 5% de tolerancia
+    const tolerance = Math.abs(correctValue * 0.01); // 1% de tolerancia
     
     // Determinar si la respuesta es correcta dentro de la tolerancia
     const isCorrect = !isNaN(inputValue) && difference <= tolerance;
@@ -3136,16 +3217,28 @@ function validateInput(inputId, correctValue) {
         // Incrementar contador global de validaciones correctas
         updateCorrectCounter();
         
-        // Actualizar puntos según la dificultad
-        gamificationSystem.addPoints(gamificationSystem.difficultyLevel);
+        // Calcular y actualizar puntos según la dificultad
+        const pointsEarned = gamificationSystem.calculateDifficulty(cycleData);
+        gamificationSystem.addPoints(pointsEarned);
+        
+        // Preparar mensaje con los puntos reales
+        let feedbackMessage = getTranslation ? getTranslation('correct_answer') : "¡Excelente trabajo! Tu respuesta es correcta. +{points} puntos";
+        feedbackMessage = feedbackMessage.replace('{points}', pointsEarned);
+        
+        // Mostrar un mensaje de retroalimentación positiva
+        showFeedbackMessage(feedbackMessage, "success");
     } else {
         markAsIncorrect(input, correctValue);
         
         // Incrementar contador global de validaciones incorrectas
         updateIncorrectCounter();
         
-        // Restar puntos según la dificultad
-        gamificationSystem.subtractPoints(gamificationSystem.difficultyLevel);
+        // Calcular y restar puntos según la dificultad
+        const pointsLost = gamificationSystem.calculateDifficulty(cycleData);
+        gamificationSystem.subtractPoints(pointsLost);
+        
+        // Mostrar un mensaje de retroalimentación negativa
+        showFeedbackMessage(getTranslation ? getTranslation('incorrect_answer') : "Respuesta incorrecta. Revisa tus cálculos e inténtalo de nuevo. ¡No te rindas!", "error");
     }
     
     // Marcar el campo como validado para evitar múltiples validaciones
@@ -3156,8 +3249,50 @@ function validateInput(inputId, correctValue) {
 
 // Función auxiliar para marcar una respuesta como correcta
 function markAsCorrect(input, correctValue) {
-    input.classList.add('correct');
-    input.classList.remove('incorrect');
+    // Guardar el valor original del usuario
+    const userValue = input.value.trim();
+    
+    // Crear un contenedor con estilos consistentes
+    const container = document.createElement('div');
+    container.className = 'validated-container correct';
+    container.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2px 5px;
+        border-radius: 4px;
+        background-color: rgba(56, 161, 105, 0.2);
+        border: 1px solid rgba(56, 161, 105, 0.4);
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        white-space: nowrap;
+    `;
+    
+    // Valor del usuario
+    const userValueSpan = document.createElement('span');
+    userValueSpan.className = 'user-value';
+    userValueSpan.textContent = userValue;
+    userValueSpan.style.cssText = `
+        font-weight: bold;
+        margin-right: 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `;
+    
+    // Valor correcto
+    const correctValueSpan = document.createElement('span');
+    correctValueSpan.className = 'correct-value';
+    correctValueSpan.innerHTML = `✓ ${correctValue.toFixed(2)}`;
+    correctValueSpan.style.cssText = `
+        font-size: 0.75em;
+        color: #16a34a;
+        white-space: nowrap;
+    `;
+    
+    // Añadir elementos al contenedor
+    container.appendChild(userValueSpan);
+    container.appendChild(correctValueSpan);
     
     // Obtener la traducción para "Correcto"
     let correctText = "Correcto";
@@ -3165,20 +3300,71 @@ function markAsCorrect(input, correctValue) {
         correctText = getTranslation('correct');
     }
     
-    input.title = `${correctText} (${correctValue.toFixed(2)})`;
+    // Actualizar el título para mostrar al hacer hover
+    container.title = `${correctText} - Tu valor: ${userValue} - Valor correcto: ${correctValue.toFixed(2)}`;
+    
+    // Guardar los datos para mantener compatibilidad con otras funciones
+    container.setAttribute('data-user-value', userValue);
+    container.setAttribute('data-correct-value', correctValue.toFixed(2));
+    container.setAttribute('data-validation-status', 'correct');
+    container.setAttribute('data-validated', 'true');
+    container.setAttribute('id', input.id);
+    container.setAttribute('data-original-input-type', 'number');
+    container.setAttribute('class', container.getAttribute('class') + ' validated-field');
+    
+    // Reemplazar el input por el div
+    input.parentNode.replaceChild(container, input);
     
     // Procesar la validación en el sistema de gamificación
-    gamificationSystem.processValidation(input.id, true);
-    
-    // Marcar el campo como validado correctamente
-    input.setAttribute('data-validation-status', 'correct');
-    input.setAttribute('data-validated', 'true'); // Establecer explícitamente como validado
+    gamificationSystem.processValidation(container.id, true);
 }
 
 // Función auxiliar para marcar una respuesta como incorrecta
 function markAsIncorrect(input, correctValue) {
-    input.classList.add('incorrect');
-    input.classList.remove('correct');
+    // Guardar el valor original del usuario
+    const userValue = input.value.trim();
+    
+    // Crear un contenedor con estilos consistentes
+    const container = document.createElement('div');
+    container.className = 'validated-container incorrect';
+    container.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 2px 5px;
+        border-radius: 4px;
+        background-color: rgba(229, 62, 62, 0.2);
+        border: 1px solid rgba(229, 62, 62, 0.4);
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        white-space: nowrap;
+    `;
+    
+    // Valor del usuario
+    const userValueSpan = document.createElement('span');
+    userValueSpan.className = 'user-value';
+    userValueSpan.textContent = userValue;
+    userValueSpan.style.cssText = `
+        font-weight: bold;
+        margin-right: 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `;
+    
+    // Valor correcto
+    const correctValueSpan = document.createElement('span');
+    correctValueSpan.className = 'correct-value';
+    correctValueSpan.innerHTML = `✗ ${correctValue.toFixed(2)}`;
+    correctValueSpan.style.cssText = `
+        font-size: 0.75em;
+        color: #dc2626;
+        white-space: nowrap;
+    `;
+    
+    // Añadir elementos al contenedor
+    container.appendChild(userValueSpan);
+    container.appendChild(correctValueSpan);
     
     // Obtener la traducción para "Incorrecto"
     let incorrectText = "Incorrecto";
@@ -3186,17 +3372,23 @@ function markAsIncorrect(input, correctValue) {
         incorrectText = getTranslation('incorrect');
     }
     
-    input.title = `${incorrectText} (${correctValue.toFixed(2)})`;
+    // Actualizar el título para mostrar al hacer hover
+    container.title = `${incorrectText} - Tu valor: ${userValue} - Valor correcto: ${correctValue.toFixed(2)}`;
     
-    // Mostrar el valor correcto
-    input.value = correctValue.toFixed(2);
+    // Guardar los datos para mantener compatibilidad con otras funciones
+    container.setAttribute('data-user-value', userValue);
+    container.setAttribute('data-correct-value', correctValue.toFixed(2));
+    container.setAttribute('data-validation-status', 'incorrect');
+    container.setAttribute('data-validated', 'true');
+    container.setAttribute('id', input.id);
+    container.setAttribute('data-original-input-type', 'number');
+    container.setAttribute('class', container.getAttribute('class') + ' validated-field');
+    
+    // Reemplazar el input por el div
+    input.parentNode.replaceChild(container, input);
     
     // Procesar la validación en el sistema de gamificación
-    gamificationSystem.processValidation(input.id, false);
-    
-    // Marcar el campo como validado incorrectamente
-    input.setAttribute('data-validation-status', 'incorrect');
-    input.setAttribute('data-validated', 'true'); // Establecer explícitamente como validado
+    gamificationSystem.processValidation(container.id, false);
 }
 
 /**
@@ -3209,6 +3401,9 @@ function shareExercise() {
         cycleType: currentCycleType || document.getElementById('cycle-type-selector').value,
         cycleData: JSON.parse(JSON.stringify(cycleData)), // Copia profunda para evitar problemas de referencia
         numMoles: numMoles,
+        // Verificar si el ciclo ya ha sido contabilizado como completado
+        cycleCounted: document.body.hasAttribute('data-cycle-counted') && 
+                     document.body.getAttribute('data-cycle-counted') === 'true',
         // Recopilar las respuestas del usuario si hay alguna
         userAnswers: {}
     };
@@ -3221,20 +3416,38 @@ function shareExercise() {
         const cells = row.querySelectorAll('td');
         if (cells.length >= 4) { // Asegurarnos de que hay suficientes celdas
             exerciseState.shownVariables[index + 1] = {
-                p: cells[1].textContent !== '—',
-                v: cells[2].textContent !== '—',
-                t: cells[3].textContent !== '—'
+                p: cells[1].textContent !== '—' && !cells[1].querySelector('input') ? false : 
+                   cells[1].querySelector('input') ? true : false,
+                v: cells[2].textContent !== '—' && !cells[2].querySelector('input') ? false : 
+                   cells[2].querySelector('input') ? true : false,
+                t: cells[3].textContent !== '—' && !cells[3].querySelector('input') ? false : 
+                   cells[3].querySelector('input') ? true : false
             };
         }
     });
     
     // Capturar las respuestas que el usuario haya introducido hasta el momento
+    // Para los campos de procesos (q, w, du, dh, ds)
     for (let i = 0; i < cycleData.length; i++) {
         exerciseState.userAnswers[`q-${i}`] = document.getElementById(`q-${i}`).value;
         exerciseState.userAnswers[`w-${i}`] = document.getElementById(`w-${i}`).value;
         exerciseState.userAnswers[`du-${i}`] = document.getElementById(`du-${i}`).value;
         exerciseState.userAnswers[`dh-${i}`] = document.getElementById(`dh-${i}`).value;
         exerciseState.userAnswers[`ds-${i}`] = document.getElementById(`ds-${i}`).value;
+    }
+    
+    // Para los campos de puntos (p, v, t)
+    for (let i = 0; i < cycleData.length; i++) {
+        // Solo incluir los campos que existen (que son editables)
+        if (document.getElementById(`p-${i}`)) {
+            exerciseState.userAnswers[`p-${i}`] = document.getElementById(`p-${i}`).value;
+        }
+        if (document.getElementById(`v-${i}`)) {
+            exerciseState.userAnswers[`v-${i}`] = document.getElementById(`v-${i}`).value;
+        }
+        if (document.getElementById(`t-${i}`)) {
+            exerciseState.userAnswers[`t-${i}`] = document.getElementById(`t-${i}`).value;
+        }
     }
     
     // Incluir también los totales
@@ -3341,6 +3554,15 @@ function loadSharedExercise() {
             cycleData = exerciseState.cycleData;
             numMoles = exerciseState.numMoles;
             
+            // Restaurar el estado de contabilización del ciclo
+            if (exerciseState.cycleCounted) {
+                document.body.setAttribute('data-cycle-counted', 'true');
+                console.log("El ciclo compartido ya ha sido contabilizado como completado");
+            } else {
+                document.body.removeAttribute('data-cycle-counted');
+                console.log("El ciclo compartido no ha sido contabilizado como completado");
+            }
+            
             // Guardar las variables mostradas para cada punto para usarlas en displayProblemData
             if (exerciseState.shownVariables) {
                 window.sharedExerciseVariables = exerciseState.shownVariables;
@@ -3371,12 +3593,160 @@ function loadSharedExercise() {
             
             // Restaurar las respuestas del usuario si existen
             if (exerciseState.userAnswers) {
+                // Primero, solo restauramos los valores para que podamos calcular los totales
                 for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
                     const inputElement = document.getElementById(inputId);
-                    if (inputElement && value) {
+                    if (inputElement && value && !inputId.includes('-total')) {
                         inputElement.value = value;
                     }
                 }
+                
+                // Actualizar los totales en tiempo real
+                updateRealTimeTotals();
+                
+                // Calcular los valores correctos para simular la validación
+                const correctValues = [];
+                
+                // Aquí calculamos los valores correctos igual que en validateResults
+                for (let i = 0; i < cycleData.length; i++) {
+                    const point = cycleData[i];
+                    const nextIndex = point.nextIndex;
+                    const nextPoint = cycleData[nextIndex];
+                    const processType = point.processType;
+                    
+                    // Capacidades caloríficas (gas monoatómico)
+                    const cv = 3 * R / 2; // J/(mol·K)
+                    const cp = 5 * R / 2; // J/(mol·K)
+                    
+                    // Calcular cambios de temperatura y volumen
+                    const deltaT = nextPoint.t - point.t;
+                    const deltaV = nextPoint.v - point.v;
+                    
+                    // Calcular valores según tipo de proceso
+                    let q, w, du, dh, ds;
+                    
+                    // Resto del código para calcular los valores correctos (igual que en validateResults)
+                    // Este código debe coincidir con el de validateResults para cada tipo de proceso
+                    
+                    switch (processType) {
+                        case 0: // Adiabático
+                            q = 0;
+                            du = numMoles * cv * deltaT;
+                            w = -du; // Primera ley: w = -du cuando q = 0
+                            dh = numMoles * cp * deltaT;
+                            ds = 0;
+                            break;
+                            
+                        case 1: // Isocórico
+                            w = 0; // No hay trabajo en proceso isocórico
+                            du = numMoles * cv * deltaT;
+                            q = du; // Primera ley: q = du cuando w = 0
+                            dh = numMoles * cp * deltaT;
+                            ds = numMoles * cv * Math.log(nextPoint.t / point.t);
+                            break;
+                            
+                        case 2: // Isotérmico
+                            // En isotérmico deltaT = 0, por lo que du = 0
+                            du = 0;
+                            dh = 0;
+                            // Trabajo en isotérmico: w = -nRT·ln(V2/V1)
+                            w = -numMoles * R * point.t * Math.log(nextPoint.v / point.v);
+                            q = -w; // Primera ley: q = -w cuando du = 0
+                            ds = q / point.t;
+                            break;
+                            
+                        case 3: // Isobárico
+                            // Trabajo en isobárico: w = P·ΔV
+                            w = point.p * 1000 * (nextPoint.v - point.v) / 1000; // kPa·L a J
+                            du = numMoles * cv * deltaT;
+                            q = numMoles * cp * deltaT;
+                            dh = q; // En isobárico: q = ΔH
+                            ds = numMoles * cp * Math.log(nextPoint.t / point.t);
+                            break;
+                            
+                        case 4: // Lineal P-V
+                            // Cálculos aproximados para proceso lineal
+                            du = numMoles * cv * deltaT;
+                            w = (point.p + nextPoint.p) / 2 * 1000 * deltaV / 1000; // kPa·L a J
+                            q = du + w; // Primera ley: q = du + w
+                            dh = du + point.p * 1000 * deltaV / 1000;
+                            ds = numMoles * cv * Math.log(nextPoint.t / point.t) + numMoles * R * Math.log(nextPoint.v / point.v);
+                            break;
+                            
+                        default:
+                            q = 0;
+                            w = 0;
+                            du = 0;
+                            dh = 0;
+                            ds = 0;
+                    }
+                    
+                    correctValues.push({
+                        q: parseFloat(q.toFixed(1)),
+                        w: parseFloat(w.toFixed(1)),
+                        du: parseFloat(du.toFixed(1)),
+                        dh: parseFloat(dh.toFixed(1)),
+                        ds: parseFloat(ds.toFixed(3))
+                    });
+                }
+                
+                // Ahora aplicamos la visualización especial a cada campo
+                for (let i = 0; i < cycleData.length; i++) {
+                    const fields = ['q', 'w', 'du', 'dh', 'ds'];
+                    
+                    fields.forEach(field => {
+                        const inputId = `${field}-${i}`;
+                        const input = document.getElementById(inputId);
+                        
+                        if (input && exerciseState.userAnswers[inputId]) {
+                            const userValue = exerciseState.userAnswers[inputId];
+                            const correctValue = correctValues[i][field];
+                            
+                            // Calcular si la respuesta es correcta (con una tolerancia del 1%)
+                            const difference = Math.abs(parseFloat(userValue) - correctValue);
+                            const tolerance = Math.abs(correctValue * 0.01);
+                            const isCorrect = !isNaN(parseFloat(userValue)) && difference <= tolerance;
+                            
+                            // Aplicar la visualización correspondiente
+                            if (isCorrect) {
+                                markAsCorrect(input, correctValue);
+                            } else {
+                                markAsIncorrect(input, correctValue);
+                            }
+                        }
+                    });
+                }
+                
+                // Para los campos de puntos
+                for (let i = 0; i < cycleData.length; i++) {
+                    const pointFields = ['p', 'v', 't'];
+                    
+                    pointFields.forEach(field => {
+                        const inputId = `${field}-${i}`;
+                        const input = document.getElementById(inputId);
+                        
+                        // Solo procesar si el input existe y tiene un valor del usuario
+                        if (input && exerciseState.userAnswers[inputId]) {
+                            const userValue = exerciseState.userAnswers[inputId];
+                            const correctValue = field === 'p' ? cycleData[i].p :
+                                               field === 'v' ? cycleData[i].v :
+                                               cycleData[i].t;
+                            
+                            // Calcular si la respuesta es correcta (con una tolerancia del 1%)
+                            const difference = Math.abs(parseFloat(userValue) - correctValue);
+                            const tolerance = Math.abs(correctValue * 0.01);
+                            const isCorrect = !isNaN(parseFloat(userValue)) && difference <= tolerance;
+                            
+                            // Aplicar la visualización correspondiente
+                            if (isCorrect) {
+                                markAsCorrect(input, correctValue);
+                            } else {
+                                markAsIncorrect(input, correctValue);
+                            }
+                        }
+                    });
+                }
+                
                 // Actualizar los totales en tiempo real
                 updateRealTimeTotals();
             }
@@ -3595,14 +3965,119 @@ function getRandomValue(min, max) {
 
 // Listener para detectar cambios de idioma
 document.addEventListener('languageChanged', function(e) {
-    // Actualizar los datos mostrados con el nuevo idioma
+    // Guardar los valores actuales de todos los inputs antes de actualizar el idioma
+    const saveInputValues = () => {
+        const inputValues = {};
+        
+        // Guardar valores de inputs de procesos (tabla inferior)
+        document.querySelectorAll('.process-input').forEach(input => {
+            if (input.value) {
+                inputValues[input.id] = input.value;
+            }
+        });
+        
+        // Guardar valores de inputs de puntos (tabla superior)
+        document.querySelectorAll('.point-input').forEach(input => {
+            if (input.value) {
+                inputValues[input.id] = input.value;
+            }
+        });
+        
+        return inputValues;
+    };
+    
+    // Restaurar los valores guardados después de actualizar las tablas
+    const restoreInputValues = (values) => {
+        // Restaurar valores de inputs de procesos
+        Object.keys(values).forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.value = values[id];
+            }
+        });
+    };
+    
+    // Guardar valores actuales
+    const savedValues = saveInputValues();
+    
+    // Actualizar los datos mostrados con el nuevo idioma, solo si hay datos para mostrar
     if (cycleData && cycleData.length > 0) {
-        displayProblemData();
-        setupTable();
+        // Actualizar textos estáticos de la sección "Datos del problema"
+        const gasDataTitle = typeof getTranslation === 'function' ? getTranslation('gas_data_title') : 'Datos del Gas';
+        const gasLabel = typeof getTranslation === 'function' ? getTranslation('gas') : 'Gas:';
+        const gasTypeText = typeof getTranslation === 'function' ? getTranslation('gas_type') : 'Gas ideal monoatómico';
+        const constantRLabel = typeof getTranslation === 'function' ? getTranslation('r_constant') : 'Constante R:';
+        const amountLabel = typeof getTranslation === 'function' ? getTranslation('amount') : 'Cantidad de sustancia:';
+        const pointsLabel = typeof getTranslation === 'function' ? getTranslation('point_data') : 'Datos de los puntos:';
+        
+        // Actualizar la sección de datos del gas
+        const gasDataHeading = document.querySelector('.gas-data h4');
+        if (gasDataHeading) gasDataHeading.textContent = gasDataTitle;
+        
+        const gasProperties = document.querySelectorAll('.gas-data .data-property');
+        if (gasProperties.length >= 5) {
+            // Actualizar la propiedad de tipo de gas
+            const gasProperty = gasProperties[0];
+            gasProperty.innerHTML = `${gasLabel} ${gasTypeText} (γ = ${GAMMA_DISPLAY})`;
+            
+            // Actualizar la propiedad de constante R
+            const rProperty = gasProperties[1];
+            rProperty.innerHTML = `${constantRLabel} ${R} J/(mol·K)`;
+            
+            // Actualizar la propiedad de cantidad de sustancia
+            const amountProperty = gasProperties[4];
+            amountProperty.innerHTML = `${amountLabel} ${numMoles} mol`;
+        }
+        
+        // Actualizar el encabezado de datos de los puntos
+        const pointsHeading = document.querySelector('.point-data h4');
+        if (pointsHeading) pointsHeading.textContent = pointsLabel;
+        
+        // Actualizar los encabezados de la tabla de puntos
+        const pointsTable = document.querySelector('.points-table');
+        if (pointsTable) {
+            const headers = pointsTable.querySelectorAll('thead th');
+            if (headers.length >= 4) {
+                headers[0].textContent = typeof getTranslation === 'function' ? getTranslation('point') : 'Punto';
+                // Mantener P (kPa), V (L), T (K) como están, ya que son símbolos universales
+            }
+        }
+        
+        // Actualizar nombres de procesos en la tabla inferior
+        document.querySelectorAll('.process-name').forEach((td, index) => {
+            if (index < cycleData.length) {
+                const point = cycleData[index];
+                const nextIndex = point.nextIndex;
+                let nextPointNumber = nextIndex + 1;
+                if (nextIndex === 0) {
+                    nextPointNumber = 1;
+                }
+                
+                // Obtener el nombre del proceso traducido
+                let processType;
+                if (typeof getTranslation === 'function') {
+                    processType = getTranslation(PROCESS_TYPES_KEYS[point.processType]);
+                } else {
+                    processType = PROCESS_TYPES[point.processType];
+                }
+                
+                td.textContent = `${index + 1}: ${processType} (${index + 1} → ${nextPointNumber})`;
+            }
+        });
+        
+        // Actualizar el título de la fila de totales si existe
+        const totalRow = document.querySelector('.total-row td:first-child');
+        if (totalRow) {
+            const totalCycleText = typeof getTranslation === 'function' ? getTranslation('total_cycle') : 'Total del Ciclo';
+            totalRow.textContent = totalCycleText;
+        }
     }
     
     // Redibujar el gráfico para actualizar leyendas y etiquetas
     drawGraph();
+    
+    // Restaurar los valores que el usuario había introducido
+    restoreInputValues(savedValues);
 });
 
 /**
@@ -3976,14 +4451,30 @@ function loadCompletedCyclesCounter() {
  * @returns {boolean} true si todos los campos están correctos, false en caso contrario
  */
 function checkCycleCompletion() {
-    // Obtener todos los campos de entrada excepto los totales
-    const processInputs = document.querySelectorAll('input[id^="q-"]:not([id="q-total"]), input[id^="w-"]:not([id="w-total"]), input[id^="du-"]:not([id="du-total"]), input[id^="dh-"]:not([id="dh-total"]), input[id^="ds-"]:not([id="ds-total"])');
+    // Verificar si este ciclo ya ha sido contabilizado
+    if (document.body.hasAttribute('data-cycle-counted') && 
+        document.body.getAttribute('data-cycle-counted') === 'true') {
+        console.log("Este ciclo ya ha sido contabilizado anteriormente");
+        return false; // Si ya fue contado, no hacemos nada
+    }
+    
+    // Obtener todos los elementos (inputs o divs) de procesos y puntos
+    const processInputs = Array.from(document.querySelectorAll('input[id^="q-"]:not([id="q-total"]), input[id^="w-"]:not([id="w-total"]), input[id^="du-"]:not([id="du-total"]), input[id^="dh-"]:not([id="dh-total"]), input[id^="ds-"]:not([id="ds-total"])'));
+    const pointInputs = Array.from(document.querySelectorAll('input[id^="p-"], input[id^="v-"], input[id^="t-"]'));
+    const validatedDivs = Array.from(document.querySelectorAll('.validated-field'));
+    
+    // Mapear los ids para saber qué divs validados reemplazaron a los inputs
+    const validatedDivIds = validatedDivs.map(div => div.id);
+    
+    // Filtrar los inputs para excluir aquellos que han sido reemplazados por divs
+    const activeProcessInputs = processInputs.filter(input => !validatedDivIds.includes(input.id));
+    const activePointInputs = pointInputs.filter(input => !validatedDivIds.includes(input.id));
     
     // Variable para seguir si el ciclo está completo
     let isComplete = true;
     
-    // Verificar que todos los campos tienen un valor y están marcados como correctos
-    processInputs.forEach(input => {
+    // Verificar que todos los inputs de procesos activos tienen un valor y están marcados como correctos
+    activeProcessInputs.forEach(input => {
         // Verificar que el campo tiene un valor y está marcado como correcto
         if (input.value.trim() === '' || 
             !input.hasAttribute('data-validation-status') || 
@@ -3992,14 +4483,179 @@ function checkCycleCompletion() {
         }
     });
     
-    // Agregamos un log para depuración
+    // Verificar que todos los inputs de puntos activos tienen un valor y están marcados como correctos
+    activePointInputs.forEach(input => {
+        // Verificar que el campo tiene un valor y está marcado como correcto
+        if (input.value.trim() === '' || 
+            !input.hasAttribute('data-validation-status') || 
+            input.getAttribute('data-validation-status') !== 'correct') {
+            isComplete = false;
+        }
+    });
+    
+    // Verificar que todos los divs validados estén marcados como correctos
+    validatedDivs.forEach(div => {
+        if (!div.hasAttribute('data-validation-status') || 
+            div.getAttribute('data-validation-status') !== 'correct') {
+            isComplete = false;
+        }
+    });
+    
     console.log("Ciclo completo y correcto: " + isComplete);
     
     // Si el ciclo está completo, incrementar el contador global
     if (isComplete) {
+        // Marcar este ciclo como ya contabilizado
+        document.body.setAttribute('data-cycle-counted', 'true');
+        
         console.log("Incrementando contador de ciclos completados");
         incrementCompletedCyclesCounter();
     }
     
     return isComplete;
+}
+
+/**
+ * Valida un campo de punto (P, V, T)
+ */
+function validatePointInput(inputId, correctValue) {
+    const input = document.getElementById(inputId);
+    if (!input) return false;
+    
+    // Verificar si el campo ya ha sido validado previamente
+    if (input.hasAttribute('data-validated') && input.getAttribute('data-validated') === 'true') {
+        // Si ya está validado, no hacemos nada y retornamos el estado actual
+        return input.getAttribute('data-validation-status') === 'correct';
+    }
+    
+    // Obtener el valor ingresado por el usuario
+    let inputValue = input.value.trim();
+    
+    // Verificar si el valor está vacío
+    if (inputValue === '') {
+        input.setAttribute('data-validation-status', 'none');
+        input.classList.remove('correct', 'incorrect');
+        return false;
+    }
+    
+    // Convertir a número y comparar con el valor correcto
+    inputValue = parseFloat(inputValue);
+    
+    // Calcular la tolerancia según el tipo de variable (p, v, t)
+    let tolerance;
+    if (inputId.startsWith('p-')) {
+        tolerance = Math.abs(correctValue * 0.01); // 1% para presión
+    } else if (inputId.startsWith('v-')) {
+        tolerance = Math.abs(correctValue * 0.01); // 1% para volumen
+    } else { // t-
+        tolerance = Math.abs(correctValue * 0.01); // 1% para temperatura
+    }
+    
+    // Determinar si la respuesta es correcta dentro de la tolerancia
+    const difference = Math.abs(inputValue - correctValue);
+    const isCorrect = !isNaN(inputValue) && difference <= tolerance;
+    
+    // Marcar la respuesta como correcta o incorrecta
+    if (isCorrect) {
+        markAsCorrect(input, correctValue);
+        
+        // Incrementar contador global de validaciones correctas
+        updateCorrectCounter();
+        
+        // Calcular y actualizar puntos según la dificultad
+        const pointsEarned = gamificationSystem.calculateDifficulty(cycleData);
+        gamificationSystem.addPoints(pointsEarned);
+        
+        // Preparar mensaje con los puntos reales
+        let feedbackMessage = getTranslation ? getTranslation('correct_answer') : "¡Excelente trabajo! Tu respuesta es correcta. +{points} puntos";
+        feedbackMessage = feedbackMessage.replace('{points}', pointsEarned);
+        
+        // Mostrar un mensaje de retroalimentación positiva
+        showFeedbackMessage(feedbackMessage, "success");
+    } else {
+        markAsIncorrect(input, correctValue);
+        
+        // Incrementar contador global de validaciones incorrectas
+        updateIncorrectCounter();
+        
+        // Calcular y restar puntos según la dificultad
+        const pointsLost = gamificationSystem.calculateDifficulty(cycleData);
+        gamificationSystem.subtractPoints(pointsLost);
+        
+        // Disminuir la energía
+        gamificationSystem.decreaseEnergy(5);
+        
+        // Mostrar un mensaje de retroalimentación negativa
+        showFeedbackMessage(getTranslation ? getTranslation('incorrect_answer') : "Respuesta incorrecta. Revisa tus cálculos e inténtalo de nuevo. ¡No te rindas!", "error");
+    }
+    
+    // Marcar el campo como validado para evitar múltiples validaciones
+    input.setAttribute('data-validated', 'true');
+    
+    return isCorrect;
+}
+
+/**
+ * Muestra un mensaje de retroalimentación al usuario
+ * @param {string} message - El mensaje a mostrar
+ * @param {string} type - El tipo de mensaje (success, error, info)
+ */
+function showFeedbackMessage(message, type = 'info') {
+    // Buscar un contenedor de mensajes existente o crear uno nuevo
+    let feedbackContainer = document.getElementById('feedback-container');
+    
+    if (!feedbackContainer) {
+        feedbackContainer = document.createElement('div');
+        feedbackContainer.id = 'feedback-container';
+        feedbackContainer.style.position = 'fixed';
+        feedbackContainer.style.bottom = '20px';
+        feedbackContainer.style.right = '20px';
+        feedbackContainer.style.zIndex = '1000';
+        document.body.appendChild(feedbackContainer);
+    }
+    
+    // Crear el elemento del mensaje
+    const messageElement = document.createElement('div');
+    messageElement.className = `feedback-message ${type}`;
+    messageElement.textContent = message;
+    
+    // Estilos según el tipo
+    switch (type) {
+        case 'success':
+            messageElement.style.backgroundColor = '#d4edda';
+            messageElement.style.color = '#155724';
+            messageElement.style.borderColor = '#c3e6cb';
+            break;
+        case 'error':
+            messageElement.style.backgroundColor = '#f8d7da';
+            messageElement.style.color = '#721c24';
+            messageElement.style.borderColor = '#f5c6cb';
+            break;
+        default:
+            messageElement.style.backgroundColor = '#d1ecf1';
+            messageElement.style.color = '#0c5460';
+            messageElement.style.borderColor = '#bee5eb';
+    }
+    
+    // Aplicar estilos comunes
+    messageElement.style.padding = '10px 15px';
+    messageElement.style.margin = '5px 0';
+    messageElement.style.borderRadius = '4px';
+    messageElement.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    messageElement.style.border = '1px solid';
+    
+    // Añadir el mensaje al contenedor
+    feedbackContainer.appendChild(messageElement);
+    
+    // Eliminar el mensaje después de 3 segundos
+    setTimeout(() => {
+        if (messageElement.parentNode === feedbackContainer) {
+            feedbackContainer.removeChild(messageElement);
+        }
+        
+        // Si no quedan mensajes, eliminar el contenedor
+        if (feedbackContainer.children.length === 0) {
+            document.body.removeChild(feedbackContainer);
+        }
+    }, 3000);
 }
