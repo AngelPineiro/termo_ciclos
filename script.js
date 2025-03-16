@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.sharedExerciseVariables = null;
                     }
                     
-                    generateCycle();
+            generateCycle();
                 }
             } else {
                 generateCycle();
@@ -601,8 +601,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Solo generar ciclo inicial si no se ha cargado un ejercicio compartido
     if (!sharedExerciseLoaded) {
-        generateCycle();
+    generateCycle();
     }
+    
+    // Añadir botón de extracción si es necesario
+    addExtractStateButton();
 });
 
 /**
@@ -2486,158 +2489,158 @@ function displayProblemData() {
         console.log("Usando variables mostradas del ejercicio compartido");
         showVariables = window.sharedExerciseVariables;
     } else {
-        // Aplicar el mismo algoritmo para todos los ciclos, incluyendo los predefinidos
-        // Inicializar todos los puntos como no visibles
-        for (let i = 1; i <= cycleData.length; i++) {
-            showVariables[i] = { p: false, v: false, t: false };
-        }
+    // Aplicar el mismo algoritmo para todos los ciclos, incluyendo los predefinidos
+    // Inicializar todos los puntos como no visibles
+    for (let i = 1; i <= cycleData.length; i++) {
+        showVariables[i] = { p: false, v: false, t: false };
+    }
+    
+    // 1. Primer punto: Mostrar siempre 2 variables (P y V por defecto)
+    showVariables[1].p = true;
+    showVariables[1].v = true;
+    
+    // 2. Recorrer secuencialmente los puntos, considerando las restricciones
+    // Array para rastrear qué puntos ya están completamente resueltos
+    const resolvedPoints = [true]; // El punto 0 no existe, el punto 1 ya está resuelto
+    for (let i = 2; i <= cycleData.length; i++) {
+        resolvedPoints.push(false); // Inicializar como no resuelto
+    }
+    resolvedPoints[1] = true; // El primer punto está resuelto
+    
+    // Resolver secuencialmente los puntos 2 a n
+    for (let i = 1; i < cycleData.length; i++) {
+        const currentPoint = cycleData[i - 1]; // Punto actual (ya resuelto)
+        const nextIndex = currentPoint.nextIndex; // Índice del siguiente punto
+        const nextPointNum = nextIndex + 1; // Número del siguiente punto (1-indexed)
+        const processType = currentPoint.processType; // Tipo de proceso que conecta
         
-        // 1. Primer punto: Mostrar siempre 2 variables (P y V por defecto)
-        showVariables[1].p = true;
-        showVariables[1].v = true;
+        // Si el siguiente punto ya está resuelto, continuar
+        if (resolvedPoints[nextPointNum]) continue;
         
-        // 2. Recorrer secuencialmente los puntos, considerando las restricciones
-        // Array para rastrear qué puntos ya están completamente resueltos
-        const resolvedPoints = [true]; // El punto 0 no existe, el punto 1 ya está resuelto
-        for (let i = 2; i <= cycleData.length; i++) {
-            resolvedPoints.push(false); // Inicializar como no resuelto
-        }
-        resolvedPoints[1] = true; // El primer punto está resuelto
-        
-        // Resolver secuencialmente los puntos 2 a n
-        for (let i = 1; i < cycleData.length; i++) {
-            const currentPoint = cycleData[i - 1]; // Punto actual (ya resuelto)
-            const nextIndex = currentPoint.nextIndex; // Índice del siguiente punto
-            const nextPointNum = nextIndex + 1; // Número del siguiente punto (1-indexed)
-            const processType = currentPoint.processType; // Tipo de proceso que conecta
-            
-            // Si el siguiente punto ya está resuelto, continuar
-            if (resolvedPoints[nextPointNum]) continue;
-            
-            // Según el tipo de proceso, aplicar las reglas correspondientes
-            if (processType === 4) { // Proceso lineal
-                // Para proceso lineal, mostrar 2 variables cualesquiera
-                let varsToAssign = 2;
-                const vars = ['p', 'v', 't'];
-                // Asignar variables aleatoriamente
-                while (varsToAssign > 0 && vars.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * vars.length);
-                    const varToShow = vars[randomIndex];
-                    showVariables[nextPointNum][varToShow] = true;
-                    vars.splice(randomIndex, 1); // Eliminar la variable ya asignada
-                    varsToAssign--;
-                }
-            } else { // Procesos con restricción física
-                // Para procesos con restricción, mostrar 1 variable que no sea la que impone la restricción
-                // Determinar qué variable no puede mostrarse según el tipo de proceso
-                let restrictedVar = null;
-                if (processType === 1) restrictedVar = 'v'; // Isocórico - V constante
-                else if (processType === 2) restrictedVar = 't'; // Isotérmico - T constante
-                else if (processType === 3) restrictedVar = 'p'; // Isobárico - P constante
-                
-                // Lista de variables posibles
-                const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
-                
-                // Elegir aleatoriamente una variable que no sea la restringida
+        // Según el tipo de proceso, aplicar las reglas correspondientes
+        if (processType === 4) { // Proceso lineal
+            // Para proceso lineal, mostrar 2 variables cualesquiera
+            let varsToAssign = 2;
+            const vars = ['p', 'v', 't'];
+            // Asignar variables aleatoriamente
+            while (varsToAssign > 0 && vars.length > 0) {
                 const randomIndex = Math.floor(Math.random() * vars.length);
                 const varToShow = vars[randomIndex];
                 showVariables[nextPointNum][varToShow] = true;
+                vars.splice(randomIndex, 1); // Eliminar la variable ya asignada
+                varsToAssign--;
             }
+        } else { // Procesos con restricción física
+            // Para procesos con restricción, mostrar 1 variable que no sea la que impone la restricción
+            // Determinar qué variable no puede mostrarse según el tipo de proceso
+            let restrictedVar = null;
+            if (processType === 1) restrictedVar = 'v'; // Isocórico - V constante
+            else if (processType === 2) restrictedVar = 't'; // Isotérmico - T constante
+            else if (processType === 3) restrictedVar = 'p'; // Isobárico - P constante
             
-            // Marcar el punto como resuelto
-            resolvedPoints[nextPointNum] = true;
+            // Lista de variables posibles
+            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+            
+            // Elegir aleatoriamente una variable que no sea la restringida
+            const randomIndex = Math.floor(Math.random() * vars.length);
+            const varToShow = vars[randomIndex];
+            showVariables[nextPointNum][varToShow] = true;
         }
         
-        // 3. Tratamiento especial para el último punto que cierra el ciclo
-        const lastPointNum = cycleData.length;
-        const lastPoint = cycleData[lastPointNum - 1];
+        // Marcar el punto como resuelto
+        resolvedPoints[nextPointNum] = true;
+    }
+    
+    // 3. Tratamiento especial para el último punto que cierra el ciclo
+    const lastPointNum = cycleData.length;
+    const lastPoint = cycleData[lastPointNum - 1];
+    
+    // Solo si el último punto conecta con el primero (cierra el ciclo)
+    if (lastPoint.nextIndex === 0) {
+        const processTypeToFirst = lastPoint.processType;
+        const processTypeFromPrev = cycleData[lastPointNum - 2].processType;
         
-        // Solo si el último punto conecta con el primero (cierra el ciclo)
-        if (lastPoint.nextIndex === 0) {
-            const processTypeToFirst = lastPoint.processType;
-            const processTypeFromPrev = cycleData[lastPointNum - 2].processType;
-            
-            // Si ambos son procesos lineales, ya está resuelto por el paso anterior
-            if (processTypeToFirst === 4 && processTypeFromPrev === 4) {
-                // Ya se asignaron 2 variables, no hacer nada más
-            } 
-            // Si uno es lineal y el otro no
-            else if (processTypeToFirst === 4 || processTypeFromPrev === 4) {
-                // Mantener una variable según la restricción que no sea lineal
-                let restrictedVar = null;
-                if (processTypeToFirst !== 4) {
-                    // La restricción viene del proceso que conecta con el primero
-                    if (processTypeToFirst === 1) restrictedVar = 'v'; // Isocórico
-                    else if (processTypeToFirst === 2) restrictedVar = 't'; // Isotérmico
-                    else if (processTypeToFirst === 3) restrictedVar = 'p'; // Isobárico
-                } else {
-                    // La restricción viene del proceso anterior
-                    if (processTypeFromPrev === 1) restrictedVar = 'v'; // Isocórico
-                    else if (processTypeFromPrev === 2) restrictedVar = 't'; // Isotérmico
-                    else if (processTypeFromPrev === 3) restrictedVar = 'p'; // Isobárico
-                }
-                
-                // Resetear las variables y asignar solo las correctas
-                showVariables[lastPointNum] = { p: false, v: false, t: false };
-                
-                // Asignar una variable que no sea la restringida
-                const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
-                const varToShow = vars[Math.floor(Math.random() * vars.length)];
-                showVariables[lastPointNum][varToShow] = true;
+        // Si ambos son procesos lineales, ya está resuelto por el paso anterior
+        if (processTypeToFirst === 4 && processTypeFromPrev === 4) {
+            // Ya se asignaron 2 variables, no hacer nada más
+        } 
+        // Si uno es lineal y el otro no
+        else if (processTypeToFirst === 4 || processTypeFromPrev === 4) {
+            // Mantener una variable según la restricción que no sea lineal
+            let restrictedVar = null;
+            if (processTypeToFirst !== 4) {
+                // La restricción viene del proceso que conecta con el primero
+                if (processTypeToFirst === 1) restrictedVar = 'v'; // Isocórico
+                else if (processTypeToFirst === 2) restrictedVar = 't'; // Isotérmico
+                else if (processTypeToFirst === 3) restrictedVar = 'p'; // Isobárico
+            } else {
+                // La restricción viene del proceso anterior
+                if (processTypeFromPrev === 1) restrictedVar = 'v'; // Isocórico
+                else if (processTypeFromPrev === 2) restrictedVar = 't'; // Isotérmico
+                else if (processTypeFromPrev === 3) restrictedVar = 'p'; // Isobárico
             }
-            // Si ambos imponen restricciones
-            else {
-                // Determinar las variables restringidas por ambos procesos
-                let restrictedVars = [];
-                let hasAdiabatic = false;
-                let hasNonLinearNonAdiabatic = false;
+            
+            // Resetear las variables y asignar solo las correctas
+            showVariables[lastPointNum] = { p: false, v: false, t: false };
+            
+            // Asignar una variable que no sea la restringida
+            const vars = ['p', 'v', 't'].filter(v => v !== restrictedVar);
+            const varToShow = vars[Math.floor(Math.random() * vars.length)];
+            showVariables[lastPointNum][varToShow] = true;
+        }
+        // Si ambos imponen restricciones
+        else {
+            // Determinar las variables restringidas por ambos procesos
+            let restrictedVars = [];
+            let hasAdiabatic = false;
+            let hasNonLinearNonAdiabatic = false;
+            
+            // Verificar si hay adiabática y otra restricción no lineal
+            if (processTypeFromPrev === 0 || processTypeToFirst === 0) {
+                hasAdiabatic = true;
+            }
+            
+            if ((processTypeFromPrev >= 1 && processTypeFromPrev <= 3) || 
+                (processTypeToFirst >= 1 && processTypeToFirst <= 3)) {
+                hasNonLinearNonAdiabatic = true;
+            }
+            
+            // Si hay una adiabática y otra restricción no lineal, el punto está determinado
+            if (hasAdiabatic && hasNonLinearNonAdiabatic) {
+                // El punto está completamente determinado, no mostrar ninguna variable
+                showVariables[lastPointNum] = { p: false, v: false, t: false };
+            } else {
+                // Restricción del proceso que conecta con el punto anterior
+                if (processTypeFromPrev === 1) restrictedVars.push('v'); // Isocórico
+                else if (processTypeFromPrev === 2) restrictedVars.push('t'); // Isotérmico
+                else if (processTypeFromPrev === 3) restrictedVars.push('p'); // Isobárico
                 
-                // Verificar si hay adiabática y otra restricción no lineal
-                if (processTypeFromPrev === 0 || processTypeToFirst === 0) {
-                    hasAdiabatic = true;
-                }
+                // Restricción del proceso que conecta con el primer punto
+                if (processTypeToFirst === 1) restrictedVars.push('v'); // Isocórico
+                else if (processTypeToFirst === 2) restrictedVars.push('t'); // Isotérmico
+                else if (processTypeToFirst === 3) restrictedVars.push('p'); // Isobárico
                 
-                if ((processTypeFromPrev >= 1 && processTypeFromPrev <= 3) || 
-                    (processTypeToFirst >= 1 && processTypeToFirst <= 3)) {
-                    hasNonLinearNonAdiabatic = true;
-                }
-                
-                // Si hay una adiabática y otra restricción no lineal, el punto está determinado
-                if (hasAdiabatic && hasNonLinearNonAdiabatic) {
-                    // El punto está completamente determinado, no mostrar ninguna variable
+                // Si hay dos restricciones diferentes (que no sean adiabáticas), el punto está determinado
+                if (restrictedVars.length === 2 && restrictedVars[0] !== restrictedVars[1]) {
+                    // El punto está determinado por las dos restricciones, eliminar todas las variables
                     showVariables[lastPointNum] = { p: false, v: false, t: false };
                 } else {
-                    // Restricción del proceso que conecta con el punto anterior
-                    if (processTypeFromPrev === 1) restrictedVars.push('v'); // Isocórico
-                    else if (processTypeFromPrev === 2) restrictedVars.push('t'); // Isotérmico
-                    else if (processTypeFromPrev === 3) restrictedVars.push('p'); // Isobárico
+                    // Solo hay una restricción o ambas son iguales, o ambas son adiabáticas
+                    // Resetear las variables y asignar solo una que no esté restringida
+                    showVariables[lastPointNum] = { p: false, v: false, t: false };
                     
-                    // Restricción del proceso que conecta con el primer punto
-                    if (processTypeToFirst === 1) restrictedVars.push('v'); // Isocórico
-                    else if (processTypeToFirst === 2) restrictedVars.push('t'); // Isotérmico
-                    else if (processTypeToFirst === 3) restrictedVars.push('p'); // Isobárico
-                    
-                    // Si hay dos restricciones diferentes (que no sean adiabáticas), el punto está determinado
-                    if (restrictedVars.length === 2 && restrictedVars[0] !== restrictedVars[1]) {
-                        // El punto está determinado por las dos restricciones, eliminar todas las variables
-                        showVariables[lastPointNum] = { p: false, v: false, t: false };
+                    // Si ambos procesos son adiabáticos, mostrar una variable cualquiera
+                    if (processTypeFromPrev === 0 && processTypeToFirst === 0) {
+                        const varToShow = ['p', 'v', 't'][Math.floor(Math.random() * 3)];
+                        showVariables[lastPointNum][varToShow] = true;
                     } else {
-                        // Solo hay una restricción o ambas son iguales, o ambas son adiabáticas
-                        // Resetear las variables y asignar solo una que no esté restringida
-                        showVariables[lastPointNum] = { p: false, v: false, t: false };
+                        // Obtener variables no restringidas
+                        const uniqueRestricted = [...new Set(restrictedVars)]; // Eliminar duplicados
+                        const vars = ['p', 'v', 't'].filter(v => !uniqueRestricted.includes(v));
                         
-                        // Si ambos procesos son adiabáticos, mostrar una variable cualquiera
-                        if (processTypeFromPrev === 0 && processTypeToFirst === 0) {
-                            const varToShow = ['p', 'v', 't'][Math.floor(Math.random() * 3)];
+                        if (vars.length > 0) {
+                            const varToShow = vars[Math.floor(Math.random() * vars.length)];
                             showVariables[lastPointNum][varToShow] = true;
-                        } else {
-                            // Obtener variables no restringidas
-                            const uniqueRestricted = [...new Set(restrictedVars)]; // Eliminar duplicados
-                            const vars = ['p', 'v', 't'].filter(v => !uniqueRestricted.includes(v));
-                            
-                            if (vars.length > 0) {
-                                const varToShow = vars[Math.floor(Math.random() * vars.length)];
-                                showVariables[lastPointNum][varToShow] = true;
                             }
                         }
                     }
@@ -3212,7 +3215,7 @@ function validateInput(inputId, correctValue) {
     
     // Marcar la respuesta como correcta o incorrecta
     if (isCorrect) {
-        markAsCorrect(input, correctValue);
+            markAsCorrect(input, correctValue);
         
         // Incrementar contador global de validaciones correctas
         updateCorrectCounter();
@@ -3227,8 +3230,8 @@ function validateInput(inputId, correctValue) {
         
         // Mostrar un mensaje de retroalimentación positiva
         showFeedbackMessage(feedbackMessage, "success");
-    } else {
-        markAsIncorrect(input, correctValue);
+        } else {
+            markAsIncorrect(input, correctValue);
         
         // Incrementar contador global de validaciones incorrectas
         updateIncorrectCounter();
@@ -3395,91 +3398,187 @@ function markAsIncorrect(input, correctValue) {
  * Función para compartir el estado actual del ejercicio
  */
 function shareExercise() {
-    // Recopilar los datos actuales del ciclo y el estado del ejercicio
+    console.log("Iniciando shareExercise");
+    
     const exerciseState = {
-        // Usar el tipo de ciclo actual en lugar del selector
         cycleType: currentCycleType || document.getElementById('cycle-type-selector').value,
-        cycleData: JSON.parse(JSON.stringify(cycleData)), // Copia profunda para evitar problemas de referencia
+        cycleData: JSON.parse(JSON.stringify(cycleData)),
         numMoles: numMoles,
-        // Verificar si el ciclo ya ha sido contabilizado como completado
         cycleCounted: document.body.hasAttribute('data-cycle-counted') && 
                      document.body.getAttribute('data-cycle-counted') === 'true',
-        // Recopilar las respuestas del usuario si hay alguna
         userAnswers: {},
-        // Estado de validación y puntuación
-        validationState: {
-            correctCount: parseInt(document.getElementById('correct-count').textContent) || 0,
-            incorrectCount: parseInt(document.getElementById('incorrect-count').textContent) || 0,
-            completedCount: parseInt(document.getElementById('completed-count').textContent) || 0,
-            totalPoints: parseInt(document.getElementById('total-points').textContent) || 0,
-            difficulty: parseInt(document.getElementById('difficulty-value').textContent.replace(/\D/g, '')) || 3
-        }
+        validationState: {}
     };
     
-    // Recopilar qué variables se muestran para cada punto
+    // Recopilar qué variables se muestran y sus valores originales para cada punto
     exerciseState.shownVariables = {};
     const pointCells = document.querySelector('.points-table tbody').querySelectorAll('tr');
     
+    // Primero recopilamos los valores de la tabla de puntos
     pointCells.forEach((row, index) => {
         const cells = row.querySelectorAll('td');
-        if (cells.length >= 4) { // Asegurarnos de que hay suficientes celdas
-            exerciseState.shownVariables[index + 1] = {
-                p: cells[1].textContent !== '—' && !cells[1].querySelector('input') ? false : 
-                   cells[1].querySelector('input') ? true : false,
-                v: cells[2].textContent !== '—' && !cells[2].querySelector('input') ? false : 
-                   cells[2].querySelector('input') ? true : false,
-                t: cells[3].textContent !== '—' && !cells[3].querySelector('input') ? false : 
-                   cells[3].querySelector('input') ? true : false
+        if (cells.length >= 4) {
+            const pointIndex = index + 1;
+            
+            // Configurar shownVariables
+            exerciseState.shownVariables[pointIndex] = {
+                p: {
+                    shown: cells[1].textContent !== '—',
+                    editable: cells[1].querySelector('input') !== null || cells[1].querySelector('.validated-container') !== null,
+                    originalValue: cycleData[index].p
+                },
+                v: {
+                    shown: cells[2].textContent !== '—',
+                    editable: cells[2].querySelector('input') !== null || cells[2].querySelector('.validated-container') !== null,
+                    originalValue: cycleData[index].v
+                },
+                t: {
+                    shown: cells[3].textContent !== '—',
+                    editable: cells[3].querySelector('input') !== null || cells[3].querySelector('.validated-container') !== null,
+                    originalValue: cycleData[index].t
+                }
             };
+
+            // Procesar TODOS los campos, validados o no
+            ['p', 'v', 't'].forEach((field, fieldIndex) => {
+                const cell = cells[fieldIndex + 1]; // +1 porque la primera celda es el número de punto
+                const validatedContainer = cell.querySelector('.validated-container');
+                
+                // Si hay un contenedor validado
+                if (validatedContainer) {
+                    const userValue = validatedContainer.getAttribute('data-user-value') || 
+                                     validatedContainer.getAttribute('data-original-input-value') || 
+                                     validatedContainer.textContent.trim();
+                    const correctValue = validatedContainer.getAttribute('data-correct-value') || 
+                                        validatedContainer.getAttribute('data-value');
+                    const isCorrect = validatedContainer.classList.contains('correct');
+                    
+                    exerciseState.userAnswers[`${field}-${index}`] = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
+                    
+                    // También registramos el estado de validación aquí para garantizar coherencia
+                    exerciseState.validationState[`${field}-${index}`] = {
+                        validated: true,
+                        status: isCorrect ? 'correct' : 'incorrect'
+                    };
+                }
+                // Si no hay contenedor validado pero tiene input
+                else if (cell.querySelector('input')) {
+                    const input = cell.querySelector('input');
+                    if (input && input.value !== '') {
+                        exerciseState.userAnswers[`${field}-${index}`] = input.value;
+                    }
+                }
+            });
         }
     });
     
-    // Capturar el estado de validación de todos los campos (tanto inputs como divs validados)
-    exerciseState.validatedFields = [];
-    
-    // Recopilar información de todos los inputs no validados
-    const allInputs = document.querySelectorAll('input[id^="q-"], input[id^="w-"], input[id^="du-"], input[id^="dh-"], input[id^="ds-"], input[id^="p-"], input[id^="v-"], input[id^="t-"]');
-    allInputs.forEach(input => {
-        if (!input.id.includes('-total')) {
-            // Guardar el valor actual del input
-            exerciseState.userAnswers[input.id] = input.value;
-            
-            // Si el input tiene un estado de validación, guardarlo
-            if (input.hasAttribute('data-validation-status')) {
-                exerciseState.validatedFields.push({
-                    id: input.id,
-                    value: input.value,
-                    isValidated: false,
-                    status: input.getAttribute('data-validation-status') || 'none'
+    // Recopilamos los valores de la tabla de variables termodinámicas
+    const thermoTable = document.getElementById('thermo-table');
+    if (thermoTable) {
+        const rows = thermoTable.querySelectorAll('tbody tr');
+        rows.forEach((row, index) => {
+            if (index < cycleData.length) {
+                ['q', 'w', 'du', 'dh', 'ds'].forEach(field => {
+                    // Buscar el input o elemento validado directamente en la fila
+                    const cell = row.querySelector(`td:nth-child(${getThermoCellIndex(field)})`);
+                    const validatedElement = cell.querySelector('.validated-container');
+                    
+                    if (validatedElement) {
+                        const userValue = validatedElement.getAttribute('data-user-value') || validatedElement.textContent.trim();
+                        const correctValue = validatedElement.getAttribute('data-correct-value');
+                        const isCorrect = validatedElement.classList.contains('correct');
+                        
+                        exerciseState.userAnswers[`${field}-${index}`] = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
+                        
+                        // Actualizar también validationState
+                        exerciseState.validationState[`${field}-${index}`] = {
+                            validated: true,
+                            status: isCorrect ? 'correct' : 'incorrect'
+                        };
+                    } 
+                    else {
+                        const input = document.getElementById(`${field}-${index}`);
+                        if (input && input.value !== '') {
+                            exerciseState.userAnswers[`${field}-${index}`] = input.value;
+                        }
+                    }
                 });
+            }
+        });
+    }
+    
+    // Incluir los totales
+    const totalFields = ['q-total', 'w-total', 'du-total', 'dh-total', 'ds-total'];
+    totalFields.forEach(field => {
+        const input = document.getElementById(field);
+        if (input) {
+            let value = '';
+            if (input.hasAttribute('data-validated')) {
+                const userValue = input.getAttribute('data-user-value') || input.value;
+                const correctValue = input.getAttribute('data-correct-value');
+                const isCorrect = input.getAttribute('data-validation-status') === 'correct';
+                value = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
+            } else {
+                value = input.value;
+            }
+            if (value !== '') {
+                exerciseState.userAnswers[field] = value;
             }
         }
     });
     
-    // Guardar información de todos los divs que ya han sido validados
-    const validatedDivs = document.querySelectorAll('.validated-container');
-    validatedDivs.forEach(div => {
-        // Extraer toda la información relevante del div validado
-        exerciseState.validatedFields.push({
-            id: div.id,
-            userValue: div.getAttribute('data-user-value'),
-            correctValue: div.getAttribute('data-correct-value'),
-            isValidated: true,
-            status: div.getAttribute('data-validation-status'),
-            cssClass: div.className
-        });
-    });
+    // Función auxiliar para obtener el índice de la celda según el campo
+    function getThermoCellIndex(field) {
+        switch(field) {
+            case 'q': return 2;
+            case 'w': return 3;
+            case 'du': return 4;
+            case 'dh': return 5;
+            case 'ds': return 6;
+            default: return 0;
+        }
+    }
     
-    // Incluir también los totales
-    const totalInputs = document.querySelectorAll('input[id$="-total"]');
-    totalInputs.forEach(input => {
-        exerciseState.userAnswers[input.id] = input.value;
+    // Recopilamos el estado de validación de todos los campos que no se hayan procesado ya
+    // Para los campos de puntos que no hemos procesado directamente
+    for (let i = 0; i < cycleData.length; i++) {
+        ['p', 'v', 't', 'q', 'w', 'du', 'dh', 'ds'].forEach(field => {
+            // Si ya lo procesamos, omitir
+            if (exerciseState.validationState[`${field}-${i}`]) {
+                return;
+            }
+            
+            const input = document.getElementById(`${field}-${i}`);
+            // Para los campos de puntos, también podemos buscar por index+1
+            const inputAlt = field === 'p' || field === 'v' || field === 't' ? 
+                           document.getElementById(`${field}-${i+1}`) : null;
+            
+            const elementToCheck = input || inputAlt;
+            
+            if (elementToCheck) {
+                exerciseState.validationState[`${field}-${i}`] = {
+                    validated: elementToCheck.hasAttribute('data-validated'),
+                    status: elementToCheck.getAttribute('data-validation-status') || 'none'
+                };
+            }
+        });
+    }
+    
+    // Para los totales
+    totalFields.forEach(field => {
+        if (!exerciseState.validationState[field]) {
+            const input = document.getElementById(field);
+            if (input) {
+                exerciseState.validationState[field] = {
+                    validated: input.hasAttribute('data-validated'),
+                    status: input.getAttribute('data-validation-status') || 'none'
+                };
+            }
+        }
     });
     
     // Incluir información de los procesos para garantizar reproducibilidad
     exerciseState.processInfo = [];
-    
-    // Extraer información adicional sobre los procesos
     const processesContainer = document.querySelector('.processes');
     if (processesContainer) {
         const processElements = processesContainer.querySelectorAll('.data-value');
@@ -3492,7 +3591,7 @@ function shareExercise() {
         });
     }
     
-    // Incluir también los puntos del ciclo con todos sus detalles
+    // Incluir los puntos del ciclo con todos sus detalles
     exerciseState.points = [];
     const pointsContainer = document.querySelector('.points');
     if (pointsContainer) {
@@ -3509,15 +3608,6 @@ function shareExercise() {
                 pointIndex++;
             }
         }
-    }
-    
-    // Incluir estado de la barra de energía
-    const energyBar = document.getElementById('energy-bar');
-    if (energyBar) {
-        exerciseState.energyBar = {
-            width: energyBar.style.width,
-            className: energyBar.className
-        };
     }
     
     // Convertir a JSON y codificar para URL
@@ -3539,7 +3629,7 @@ function shareExercise() {
             <button id="close-dialog">Cerrar</button>
         </div>
     `;
-    
+  
     // Crear elemento para el diálogo
     const dialogOverlay = document.createElement('div');
     dialogOverlay.className = 'dialog-overlay';
@@ -3557,6 +3647,14 @@ function shareExercise() {
     document.getElementById('close-dialog').addEventListener('click', function() {
         document.body.removeChild(dialogOverlay);
     });
+
+    // //Esto debo borrarlo, sólo es para
+    // const blob = new Blob([stateJson], { type: 'application/json' });
+    // const url = window.URL.createObjectURL(blob);
+    // const a = document.createElement('a');
+    // a.href = url;
+    // a.download = 'kk.json';
+    // a.click();
 }
 
 /**
@@ -3570,9 +3668,28 @@ function loadSharedExercise() {
     
     if (stateParam) {
         try {
-            // Decodificar el estado
-            const stateJson = decodeURIComponent(atob(stateParam));
+            // Limpiar y validar la cadena base64
+            let cleanBase64 = stateParam.trim();
+            // Asegurar que la longitud sea múltiplo de 4 añadiendo padding si es necesario
+            while (cleanBase64.length % 4 !== 0) {
+                cleanBase64 += '=';
+            }
+            // Reemplazar caracteres problemáticos (puede que algunos navegadores los modifiquen)
+            cleanBase64 = cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
+            
+            // Intentar decodificar con manejo de errores
+            let decodedString;
+            try {
+                decodedString = atob(cleanBase64);
+            } catch (e) {
+                console.error("Error en decodificación base64:", e);
+                throw new Error("La cadena base64 no está correctamente codificada. Compruebe que el enlace es correcto.");
+            }
+            
+            // Decodificar URL
+            const stateJson = decodeURIComponent(decodedString);
             const exerciseState = JSON.parse(stateJson);
+            console.log("Estado compartido cargado:", exerciseState);
             
             // Restaurar el tipo de ciclo
             document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
@@ -3580,7 +3697,7 @@ function loadSharedExercise() {
             
             // Restaurar los datos del ciclo
             cycleData = exerciseState.cycleData;
-            numMoles = exerciseState.numMoles;
+            numMoles = exerciseState.numMoles || 1;
             
             // Restaurar el estado de contabilización del ciclo
             if (exerciseState.cycleCounted) {
@@ -3591,182 +3708,338 @@ function loadSharedExercise() {
                 console.log("El ciclo compartido no ha sido contabilizado como completado");
             }
             
-            // Guardar las variables mostradas para cada punto para usarlas en displayProblemData
+            // Guardar las variables mostradas para usarlas en displayProblemData
             if (exerciseState.shownVariables) {
-                window.sharedExerciseVariables = exerciseState.shownVariables;
-                console.log("Variables mostradas cargadas del ejercicio compartido:", window.sharedExerciseVariables);
+                shownVariables = exerciseState.shownVariables;
+                console.log("Variables mostradas cargadas del ejercicio compartido:", shownVariables);
             }
-            
-            // Verificar si hay información específica sobre los procesos y puntos
-            if (exerciseState.processInfo && exerciseState.processInfo.length > 0) {
-                console.log("Información de procesos disponible en el estado compartido.");
-            }
-            
-            if (exerciseState.points && exerciseState.points.length > 0) {
-                console.log("Información de puntos disponible en el estado compartido.");
-            }
-            
-            // Actualizar la dificultad del ciclo
-            const difficultyLevel = exerciseState.validationState?.difficulty || gamificationSystem.calculateDifficulty(cycleData);
-            gameState.currentDifficulty = difficultyLevel;
-            gamificationSystem.updateDifficultyDisplay(difficultyLevel);
-            
-            // Prevenir cualquier regeneración aleatoria
-            viewCycle = true;
             
             // Dibujar el ciclo y mostrar datos
             drawGraph();
             displayProblemData();
+            
+            // Configurar la tabla
             setupTable();
             
-            // Restaurar el estado de validación y puntuación si existe
-            if (exerciseState.validationState) {
-                // Restaurar contadores
-                document.getElementById('correct-count').textContent = exerciseState.validationState.correctCount;
-                document.getElementById('incorrect-count').textContent = exerciseState.validationState.incorrectCount;
-                document.getElementById('completed-count').textContent = exerciseState.validationState.completedCount;
-                document.getElementById('total-points').textContent = exerciseState.validationState.totalPoints;
-                
-                // Actualizar el sistema de gamificación
-                gameState.correctAnswers = exerciseState.validationState.correctCount;
-                gameState.incorrectAnswers = exerciseState.validationState.incorrectCount;
-                gameState.points = exerciseState.validationState.totalPoints;
-                
-                // Actualizar barra de energía si existe
-                if (exerciseState.energyBar) {
-                    const energyBar = document.getElementById('energy-bar');
-                    if (energyBar) {
-                        energyBar.style.width = exerciseState.energyBar.width;
-                        energyBar.className = exerciseState.energyBar.className;
-                    }
-                }
+            // Restaurar las respuestas del usuario y estados de validación
+            if (exerciseState.userAnswers && exerciseState.validationState) {
+                restoreUserAnswersAndValidation(exerciseState);
             }
             
-            // Restaurar las respuestas del usuario y valores en los inputs
-            if (exerciseState.userAnswers) {
-                // Primero, solo restauramos los valores para los inputs no validados
-                for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
-                    const inputElement = document.getElementById(inputId);
-                    
-                    if (inputElement && inputElement.tagName === 'INPUT' && value && value.trim() !== '') {
-                        // No restaurar valores para inputs que serán reemplazados por elementos validados
-                        const willBeValidated = exerciseState.validatedFields?.some(
-                            field => field.id === inputId && field.isValidated
-                        );
-                        
-                        if (!willBeValidated) {
-                            inputElement.value = value;
-                        }
-                    }
-                }
-            }
-            
-            // Restaurar el estado de los campos validados
-            if (exerciseState.validatedFields && exerciseState.validatedFields.length > 0) {
-                // Primero, manejar los campos que se convierten en divs validados
-                const validatedFields = exerciseState.validatedFields.filter(field => field.isValidated);
-                
-                validatedFields.forEach(field => {
-                    const input = document.getElementById(field.id);
-                    if (input && input.tagName === 'INPUT') {
-                        // Crear el elemento div validado con los datos restaurados
-                        const container = document.createElement('div');
-                        container.className = field.cssClass || 'validated-container ' + field.status;
-                        container.style.cssText = `
-                            display: flex;
-                            align-items: center;
-                            justify-content: space-between;
-                            padding: 2px 5px;
-                            border-radius: 4px;
-                            background-color: ${field.status === 'correct' ? 'rgba(56, 161, 105, 0.2)' : 'rgba(229, 62, 62, 0.2)'};
-                            border: 1px solid ${field.status === 'correct' ? 'rgba(56, 161, 105, 0.4)' : 'rgba(229, 62, 62, 0.4)'};
-                            width: 100%;
-                            height: 100%;
-                            box-sizing: border-box;
-                            white-space: nowrap;
-                        `;
-                        
-                        // Valor del usuario
-                        const userValueSpan = document.createElement('span');
-                        userValueSpan.className = 'user-value';
-                        userValueSpan.textContent = field.userValue;
-                        userValueSpan.style.cssText = `
-                            font-weight: bold;
-                            margin-right: 8px;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                        `;
-                        
-                        // Valor correcto
-                        const correctValueSpan = document.createElement('span');
-                        correctValueSpan.className = 'correct-value';
-                        correctValueSpan.innerHTML = `${field.status === 'correct' ? '✓' : '✗'} ${field.correctValue}`;
-                        correctValueSpan.style.cssText = `
-                            font-size: 0.75em;
-                            color: ${field.status === 'correct' ? '#16a34a' : '#dc2626'};
-                            white-space: nowrap;
-                        `;
-                        
-                        // Añadir elementos al contenedor
-                        container.appendChild(userValueSpan);
-                        container.appendChild(correctValueSpan);
-                        
-                        // Obtener la traducción
-                        let statusText = field.status === 'correct' ? "Correcto" : "Incorrecto";
-                        if (typeof getTranslation === 'function') {
-                            statusText = getTranslation(field.status);
-                        }
-                        
-                        // Actualizar el título
-                        container.title = `${statusText} - Tu valor: ${field.userValue} - Valor correcto: ${field.correctValue}`;
-                        
-                        // Configurar atributos para compatibilidad
-                        container.setAttribute('data-user-value', field.userValue);
-                        container.setAttribute('data-correct-value', field.correctValue);
-                        container.setAttribute('data-validation-status', field.status);
-                        container.setAttribute('data-validated', 'true');
-                        container.setAttribute('id', field.id);
-                        container.setAttribute('data-original-input-type', 'number');
-                        container.setAttribute('class', container.getAttribute('class') + ' validated-field');
-                        
-                        // Reemplazar el input por el div
-                        if (input && input.parentNode) {
-                            input.parentNode.replaceChild(container, input);
-                        }
-                    }
-                });
-                
-                // Ahora manejar inputs que tienen estados de validación pero no han sido transformados
-                const nonValidatedFields = exerciseState.validatedFields.filter(field => !field.isValidated);
-                
-                nonValidatedFields.forEach(field => {
-                    const input = document.getElementById(field.id);
-                    if (input && input.tagName === 'INPUT') {
-                        // Restaurar valor y estado de validación
-                        input.value = field.value || '';
-                        
-                        if (field.status && field.status !== 'none') {
-                            input.setAttribute('data-validation-status', field.status);
-                            input.classList.add(field.status);
-                        }
-                    }
-                });
-            }
-            
-            // Actualizar los totales en tiempo real
-            updateRealTimeTotals();
-            
-            // Actualizar el estado de los botones (como el exportar progreso)
-            checkAllFieldsCompleted();
+            // Informar al usuario que se ha cargado un ejercicio compartido
+            showFeedbackMessage('Se ha cargado un ejercicio compartido', 'info');
             
             return true;
         } catch (error) {
-            console.error("Error al cargar el ejercicio compartido:", error);
+            console.error('Error al cargar el ejercicio compartido:', error);
+            alert('Error al cargar el ejercicio compartido: ' + error.message);
             return false;
         }
     }
     
     return false;
+}
+
+/**
+ * Muestra los datos del problema desde un estado compartido
+ * @param {Object} exerciseState - El estado del ejercicio
+ */
+function displayProblemDataFromShared(exerciseState) {
+    // Limpiar datos anteriores
+    document.querySelector('.processes').innerHTML = '';
+    document.querySelector('.points').innerHTML = '';
+    
+    // Mostrar datos del gas
+    const gasType = document.querySelector('.gas');
+    const rConstant = document.querySelector('.r-constant');
+    const amount = document.querySelector('.property-value.amount');
+    
+    if (exerciseState.cycleData[0].gamma === 1.4) {
+        gasType.textContent = "Gas ideal diatómico (γ = 7/5)";
+    } else {
+        gasType.textContent = "Gas ideal monoatómico (γ = 5/3)";
+    }
+    
+    rConstant.textContent = "8.31 J/(mol·K)";
+    amount.textContent = `${exerciseState.numMoles} mol`;
+    
+    // Crear tabla para los puntos
+    const pointsContainer = document.querySelector('.points');
+    const pointsTable = document.createElement('table');
+    pointsTable.className = 'data-table';
+    
+    // Crear encabezado de la tabla
+    const pointsHeader = document.createElement('tr');
+    ['Punto', 'P (kPa)', 'V (L)', 'T (K)'].forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        pointsHeader.appendChild(th);
+    });
+    pointsTable.appendChild(pointsHeader);
+    
+    // Mostrar datos de los puntos usando shownVariables
+    for (let i = 1; i <= exerciseState.cycleData.length; i++) {
+        const pointIndex = i;
+        const dataIndex = i - 1;
+        const pointData = exerciseState.cycleData[dataIndex];
+        const shownVars = exerciseState.shownVariables[pointIndex] || {};
+        
+        const row = document.createElement('tr');
+        
+        // Columna Punto
+        const pointCell = document.createElement('td');
+        pointCell.textContent = pointIndex;
+        row.appendChild(pointCell);
+        
+        // Columna P
+        const pCell = document.createElement('td');
+        if (shownVars.p && shownVars.p.shown) {
+            if (shownVars.p.editable) {
+                const pInput = document.createElement('input');
+                pInput.type = 'text';
+                pInput.id = `p-${pointIndex}`;
+                pInput.className = 'point-input';
+                pInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
+                pInput.dataset.correctValue = pointData.p.toFixed(2);
+                pCell.appendChild(pInput);
+            } else {
+                pCell.textContent = pointData.p.toFixed(2);
+            }
+        } else {
+            pCell.textContent = '-';
+        }
+        row.appendChild(pCell);
+        
+        // Columna V
+        const vCell = document.createElement('td');
+        if (shownVars.v && shownVars.v.shown) {
+            if (shownVars.v.editable) {
+                const vInput = document.createElement('input');
+                vInput.type = 'text';
+                vInput.id = `v-${pointIndex}`;
+                vInput.className = 'point-input';
+                vInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
+                vInput.dataset.correctValue = pointData.v.toFixed(2);
+                vCell.appendChild(vInput);
+            } else {
+                vCell.textContent = pointData.v.toFixed(2);
+            }
+        } else {
+            vCell.textContent = '-';
+        }
+        row.appendChild(vCell);
+        
+        // Columna T
+        const tCell = document.createElement('td');
+        if (shownVars.t && shownVars.t.shown) {
+            if (shownVars.t.editable) {
+                const tInput = document.createElement('input');
+                tInput.type = 'text';
+                tInput.id = `t-${pointIndex}`;
+                tInput.className = 'point-input';
+                tInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
+                tInput.dataset.correctValue = pointData.t.toFixed(2);
+                tCell.appendChild(tInput);
+            } else {
+                tCell.textContent = pointData.t.toFixed(2);
+            }
+        } else {
+            tCell.textContent = '-';
+        }
+        row.appendChild(tCell);
+        
+        pointsTable.appendChild(row);
+    }
+    
+    pointsContainer.appendChild(pointsTable);
+    
+    // Mostrar información de los procesos
+    const processesContainer = document.querySelector('.processes');
+    const processesTable = document.createElement('table');
+    processesTable.className = 'data-table';
+    
+    // Encabezado de tabla para procesos
+    const processHeader = document.createElement('tr');
+    ['Proceso', 'Tipo'].forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        processHeader.appendChild(th);
+    });
+    processesTable.appendChild(processHeader);
+    
+    // Mostrar datos de los procesos
+    for (let i = 0; i < exerciseState.cycleData.length; i++) {
+        const processRow = document.createElement('tr');
+        
+        const processIndexCell = document.createElement('td');
+        const startIndex = i + 1;
+        const endIndex = (i + 1) % exerciseState.cycleData.length + 1;
+        processIndexCell.textContent = `${startIndex} → ${endIndex}`;
+        processRow.appendChild(processIndexCell);
+        
+        const processTypeCell = document.createElement('td');
+        const processType = exerciseState.cycleData[i].processType;
+        const processNames = [
+            "Desconocido",
+            "Adiabático",
+            "Isotérmico",
+            "Isobárico",
+            "Isocórico",
+            "Lineal P-V"
+        ];
+        processTypeCell.textContent = processNames[processType] || "Desconocido";
+        processRow.appendChild(processTypeCell);
+        
+        processesTable.appendChild(processRow);
+    }
+    
+    processesContainer.appendChild(processesTable);
+}
+
+/**
+ * Restaura las respuestas del usuario y los estados de validación
+ * @param {Object} exerciseState - El estado del ejercicio
+ */
+function restoreUserAnswersAndValidation(exerciseState) {
+    console.log("Restaurando respuestas de usuario y validaciones:", exerciseState.userAnswers);
+    
+    // Procesa un valor validado y extrae su valor numérico
+    const processValueFromString = (valueString) => {
+        if (!valueString) return "";
+        
+        // Formato: "-3✗ 61.30" o "0✓ 0.00"
+        const matchValidated = valueString.match(/^(-?\d+)(✓|✗)\s+(.+)$/);
+        if (matchValidated) {
+            return matchValidated[3]; // El valor numérico
+        }
+        return valueString;
+    };
+    
+    // Revisa si un campo está validado
+    const isFieldValidated = (fieldId) => {
+        return exerciseState.validationState && 
+               exerciseState.validationState[fieldId] && 
+               exerciseState.validationState[fieldId].validated;
+    };
+    
+    // Obtiene el estado de validación para un campo
+    const getValidationStatus = (fieldId) => {
+        if (!exerciseState.validationState || !exerciseState.validationState[fieldId]) {
+            return null;
+        }
+        return exerciseState.validationState[fieldId].status;
+    };
+    
+    // Restaura los campos de la tabla de puntos
+    for (let i = 1; i <= exerciseState.cycleData.length; i++) {
+        ['p', 'v', 't'].forEach(variable => {
+            const fieldId = `${variable}-${i}`;
+            const input = document.getElementById(fieldId);
+            
+            if (!input) {
+                // Si no existe el input, continuamos
+                return; // Usar return en lugar de continue dentro del forEach
+            }
+            
+            // Si hay un valor para este campo
+            if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
+                input.value = processValueFromString(exerciseState.userAnswers[fieldId]);
+                
+                // Si está validado
+                if (isFieldValidated(fieldId)) {
+                    const status = getValidationStatus(fieldId);
+                    input.readOnly = true;
+                    
+                    if (status === 'correct') {
+                        input.classList.add('correct-input');
+                        // Reemplazamos el input por un div si es necesario
+                        const parentCell = input.parentElement;
+                        if (parentCell && parentCell.tagName === 'TD') {
+                            const validatedValue = input.value;
+                            const validatedDiv = document.createElement('div');
+                            validatedDiv.className = 'validated-value correct';
+                            validatedDiv.textContent = validatedValue;
+                            validatedDiv.id = fieldId; // Mantener el ID para referencias futuras
+                            parentCell.replaceChild(validatedDiv, input);
+                        }
+                    } else if (status === 'incorrect') {
+                        input.classList.add('incorrect-input');
+                        const parentCell = input.parentElement;
+                        if (parentCell && parentCell.tagName === 'TD') {
+                            const validatedValue = input.value;
+                            const validatedDiv = document.createElement('div');
+                            validatedDiv.className = 'validated-value incorrect';
+                            validatedDiv.textContent = validatedValue;
+                            validatedDiv.id = fieldId;
+                            parentCell.replaceChild(validatedDiv, input);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Restaura los campos de la tabla de variables termodinámicas
+    const tableRows = document.querySelectorAll('#thermo-table tbody tr');
+    tableRows.forEach((row, rowIndex) => {
+        if (rowIndex < exerciseState.cycleData.length) { // Solo filas de procesos
+            ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, colIndex) => {
+                const fieldId = `${variable}-${rowIndex}`;
+                const cell = row.cells[colIndex + 1]; // +1 porque la primera columna es el proceso
+                if (!cell) {
+                    return; // Usar return en lugar de continue
+                }
+                
+                const input = cell.querySelector('input');
+                if (!input) {
+                    return; // Usar return en lugar de continue
+                }
+                
+                // Si hay un valor para este campo
+                if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
+                    input.value = processValueFromString(exerciseState.userAnswers[fieldId]);
+                    
+                    // Si está validado
+                    if (isFieldValidated(fieldId)) {
+                        const status = getValidationStatus(fieldId);
+                        input.readOnly = true;
+                        
+                        if (status === 'correct') {
+                            // Formatear como validado correcto
+                            cell.innerHTML = '';
+                            const validatedDiv = document.createElement('div');
+                            validatedDiv.className = 'validated-value correct';
+                            validatedDiv.textContent = input.value;
+                            validatedDiv.id = fieldId;
+                            cell.appendChild(validatedDiv);
+                        } else if (status === 'incorrect') {
+                            // Formatear como validado incorrecto
+                            cell.innerHTML = '';
+                            const validatedDiv = document.createElement('div');
+                            validatedDiv.className = 'validated-value incorrect';
+                            validatedDiv.textContent = input.value;
+                            validatedDiv.id = fieldId;
+                            cell.appendChild(validatedDiv);
+                        }
+                    }
+                }
+            });
+        }
+    });
+    
+    // Restaura los totales
+    ['q', 'w', 'du', 'dh', 'ds'].forEach(variable => {
+        const totalId = `${variable}-total`;
+        const totalElement = document.getElementById(totalId);
+        if (totalElement && exerciseState.userAnswers[totalId]) {
+            totalElement.textContent = exerciseState.userAnswers[totalId];
+        }
+    });
+    
+    console.log("Restauración completada");
+    
+    // Actualizar los totales
+    updateRealTimeTotals();
 }
 
 /**
@@ -4664,4 +4937,402 @@ function showFeedbackMessage(message, type = 'info') {
             document.body.removeChild(feedbackContainer);
         }
     }, 3000);
+}
+
+// // Función temporal para desencriptar y descargar el JSON de la URL
+// function extractAndDownloadState() {
+//     const urlParams = new URLSearchParams(window.location.search);
+//     const stateParam = urlParams.get('state');
+    
+//     if (stateParam) {
+//         try {
+//             // Decodificar el estado
+//             const stateJson = decodeURIComponent(atob(stateParam));
+//             const exerciseState = JSON.parse(stateJson);
+            
+//             // Crear un blob y descargar
+//             const blob = new Blob([JSON.stringify(exerciseState, null, 2)], {type: 'application/json'});
+//             const url = URL.createObjectURL(blob);
+//             const a = document.createElement('a');
+//             a.href = url;
+//             a.download = 'estado_desencriptado.json';
+//             a.click();
+            
+//             return exerciseState;
+//         } catch (error) {
+//             console.error("Error al desencriptar:", error);
+//             alert("Error al desencriptar el estado de la URL.");
+//         }
+//     } else {
+//         alert("No hay estado en la URL");
+//     }
+//     return null;
+// }
+
+// Añadir botón para extraer el estado (solo se mostrará si hay estado en la URL)
+function addExtractStateButton() {
+    if (new URLSearchParams(window.location.search).has('state')) {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.textAlign = 'center';
+        buttonContainer.style.margin = '10px 0';
+        
+        const extractButton = document.createElement('button');
+        extractButton.textContent = 'Descargar JSON desencriptado';
+        extractButton.className = 'extract-state-btn';
+        extractButton.style.backgroundColor = '#3b82f6';
+        extractButton.style.color = 'white';
+        extractButton.style.border = 'none';
+        extractButton.style.borderRadius = '4px';
+        extractButton.style.padding = '8px 15px';
+        extractButton.style.cursor = 'pointer';
+        extractButton.onclick = extractAndDownloadState;
+        
+        buttonContainer.appendChild(extractButton);
+        
+        // Insertar después del elemento de selección de ciclo
+        const cycleSelector = document.getElementById('cycle-type-selector');
+        if (cycleSelector && cycleSelector.parentNode) {
+            cycleSelector.parentNode.parentNode.insertBefore(buttonContainer, cycleSelector.parentNode.nextSibling);
+        } else {
+            document.body.insertBefore(buttonContainer, document.body.firstChild);
+        }
+    }
+}
+
+// Función para mostrar el botón inmediatamente
+// function showExtractButton() {
+//     // Crear elementos
+//     const buttonContainer = document.createElement('div');
+//     buttonContainer.style.position = 'fixed';
+//     buttonContainer.style.top = '10px';
+//     buttonContainer.style.right = '10px';
+//     buttonContainer.style.zIndex = '1000';
+    
+//     const extractButton = document.createElement('button');
+//     extractButton.textContent = 'Descargar JSON';
+//     extractButton.style.backgroundColor = '#ff5722';
+//     extractButton.style.color = 'white';
+//     extractButton.style.border = 'none';
+//     extractButton.style.borderRadius = '4px';
+//     extractButton.style.padding = '10px 15px';
+//     extractButton.style.cursor = 'pointer';
+//     extractButton.style.fontWeight = 'bold';
+//     extractButton.onclick = function() {
+//         const urlParams = new URLSearchParams(window.location.search);
+//         const stateParam = urlParams.get('state');
+        
+//         if (stateParam) {
+//             try {
+//                 // Decodificar el estado
+//                 const stateJson = decodeURIComponent(atob(stateParam));
+//                 const exerciseState = JSON.parse(stateJson);
+                
+//                 // Crear un blob y descargar
+//                 const blob = new Blob([JSON.stringify(exerciseState, null, 2)], {type: 'application/json'});
+//                 const url = URL.createObjectURL(blob);
+//                 const a = document.createElement('a');
+//                 a.href = url;
+//                 a.download = 'estado_desencriptado.json';
+//                 a.click();
+                
+//                 console.log("JSON desencriptado:", exerciseState);
+//                 alert("JSON descargado correctamente");
+//             } catch (error) {
+//                 console.error("Error al desencriptar:", error);
+//                 alert("Error al desencriptar el estado de la URL: " + error.message);
+//             }
+//         } else {
+//             alert("No hay parámetro 'state' en la URL");
+//         }
+//     };
+    
+//     buttonContainer.appendChild(extractButton);
+//     document.body.appendChild(buttonContainer);
+// }
+
+// // Ejecutar inmediatamente
+// showExtractButton();
+
+function loadSharedExercise() {
+    // Verificar si hay un estado en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const stateParam = urlParams.get('state');
+    
+    if (stateParam) {
+        try {
+            // Limpiar y validar la cadena base64
+            let cleanBase64 = stateParam.trim();
+            // Asegurar que la longitud sea múltiplo de 4 añadiendo padding si es necesario
+            while (cleanBase64.length % 4 !== 0) {
+                cleanBase64 += '=';
+            }
+            // Reemplazar caracteres problemáticos (puede que algunos navegadores los modifiquen)
+            cleanBase64 = cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
+            
+            // Intentar decodificar con manejo de errores
+            let decodedString;
+            try {
+                decodedString = atob(cleanBase64);
+            } catch (e) {
+                console.error("Error en decodificación base64:", e);
+                throw new Error("La cadena base64 no está correctamente codificada. Compruebe que el enlace es correcto.");
+            }
+            
+            // Decodificar URL
+            const stateJson = decodeURIComponent(decodedString);
+            const exerciseState = JSON.parse(stateJson);
+            console.log("Estado compartido cargado:", exerciseState);
+            
+            // Restaurar el tipo de ciclo
+            document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
+            currentCycleType = exerciseState.cycleType;
+            
+            // Restaurar los datos del ciclo
+            cycleData = exerciseState.cycleData;
+            numMoles = exerciseState.numMoles || 1;
+            
+            // Restaurar el estado de contabilización del ciclo
+            if (exerciseState.cycleCounted) {
+                document.body.setAttribute('data-cycle-counted', 'true');
+            } else {
+                document.body.removeAttribute('data-cycle-counted');
+            }
+            
+            // Guardar las variables mostradas para usarlas en displayProblemData
+            if (exerciseState.shownVariables) {
+                shownVariables = exerciseState.shownVariables;
+            }
+            
+            // Dibujar el gráfico y configurar la interfaz
+            drawGraph();
+            displayProblemData();
+            setupTable();
+            
+            // Esperar a que se complete la renderización del DOM
+            setTimeout(() => {
+                // Restaurar respuestas y validaciones
+                restoreUserAnswersAndValidationImproved(exerciseState);
+                
+                // Mostrar mensaje de carga exitosa
+                showFeedbackMessage('Ejercicio compartido cargado con éxito', 'success');
+            }, 100);
+            
+            return true;
+        } catch (error) {
+            console.error('Error al cargar el ejercicio compartido:', error);
+            alert('Error al cargar el ejercicio compartido: ' + error.message);
+            return false;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Versión mejorada para restaurar las respuestas del usuario y los estados de validación
+ */
+function restoreUserAnswersAndValidationImproved(exerciseState) {
+    console.log("Restaurando respuestas y validaciones desde:", exerciseState);
+    
+    if (!exerciseState.userAnswers || !exerciseState.validationState) {
+        console.warn("No hay respuestas o estados de validación para restaurar");
+        return;
+    }
+    
+    // PASO 1: Restaurar inputs en la tabla de puntos
+    restorePointsTableInputsImproved(exerciseState);
+    
+    // PASO 2: Restaurar inputs en la tabla de variables termodinámicas
+    restoreThermodynamicVariablesImproved(exerciseState);
+    
+    // PASO 3: Actualizar totales
+    updateRealTimeTotals();
+}
+
+/**
+ * Restaura los inputs en la tabla de puntos con el formato original
+ */
+function restorePointsTableInputsImproved(exerciseState) {
+    const pointsTable = document.querySelector('.points-table');
+    if (!pointsTable) {
+        console.warn("No se encontró la tabla de puntos");
+        return;
+    }
+    
+    // Recorrer las filas de la tabla (una por punto)
+    const rows = pointsTable.querySelectorAll('tbody tr');
+    
+    rows.forEach((row, rowIndex) => {
+        const pointIndex = rowIndex + 1; // Los índices en la UI son 1-indexed
+        
+        // Para cada variable (p, v, t)
+        ['p', 'v', 't'].forEach((variable, varIndex) => {
+            const cell = row.cells[varIndex + 1]; // +1 porque la primera columna es el índice
+            if (!cell) return;
+            
+            const fieldId = `${variable}-${rowIndex}`;
+            
+            // Obtener configuración del shownVariables
+            const shownVar = exerciseState.shownVariables[pointIndex]?.[variable];
+            
+            // CASO 1: Campos que nunca fueron editables (shown=true, editable=false)
+            if (shownVar && shownVar.shown && !shownVar.editable) {
+                // Simplemente mostrar el valor original como texto
+                cell.innerHTML = '';
+                cell.textContent = shownVar.originalValue.toFixed(2);
+            }
+            // CASO 2: Campos validados
+            else if (exerciseState.validationState && exerciseState.validationState[fieldId] && 
+                     exerciseState.validationState[fieldId].validated) {
+                
+                // Obtener el valor del usuario y estado de validación
+                const status = exerciseState.validationState[fieldId].status;
+                const userAnswer = exerciseState.userAnswers[fieldId] || "";
+                
+                // Crear contenedor validado con el formato y color adecuados
+                const validatedDiv = document.createElement('div');
+                validatedDiv.id = fieldId;
+                validatedDiv.className = `validated-container ${status}`;
+                
+                if (status === 'correct') {
+                    validatedDiv.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 2px 5px;
+                        border-radius: 4px;
+                        background-color: rgba(56, 161, 105, 0.2);
+                        border: 1px solid rgba(56, 161, 105, 0.4);
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                        white-space: nowrap;
+                    `;
+                } else {
+                    validatedDiv.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 2px 5px;
+                        border-radius: 4px;
+                        background-color: rgba(229, 62, 62, 0.2);
+                        border: 1px solid rgba(229, 62, 62, 0.4);
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                        white-space: nowrap;
+                    `;
+                }
+                
+                // Extraer el valor del usuario de userAnswers
+                validatedDiv.textContent = userAnswer;
+                
+                // Reemplazar input o contenido actual de la celda
+                cell.innerHTML = '';
+                cell.appendChild(validatedDiv);
+            }
+            // CASO 3: Campos editables no validados
+            else {
+                // Mantener o crear el input editable
+                let input = cell.querySelector('input');
+                
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.id = fieldId;
+                    input.className = 'point-input';
+                    input.placeholder = '0';
+                    
+                    if (shownVar && shownVar.originalValue) {
+                        input.dataset.correctValue = shownVar.originalValue.toFixed(2);
+                    }
+                    
+                    cell.innerHTML = '';
+                    cell.appendChild(input);
+                }
+                
+                // Si hay un valor para este campo en userAnswers, establecerlo
+                if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
+                    input.value = extractUserValue(exerciseState.userAnswers[fieldId]);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Extrae el valor numérico de una cadena validada
+ */
+function extractUserValue(validatedString) {
+    if (!validatedString) return "";
+    
+    // Formato posible: "-3✗ 61.30" o "0✓ 0.00"
+    const match = validatedString.match(/^(-?\d+)(✓|✗)\s+(.+)$/);
+    if (match) {
+        return match[3]; // El valor numérico
+    }
+    return validatedString;
+}
+
+/**
+ * Restaura las variables termodinámicas con el formato original
+ */
+function restoreThermodynamicVariablesImproved(exerciseState) {
+    const thermoTable = document.getElementById('thermo-table');
+    if (!thermoTable) {
+        console.warn("No se encontró la tabla de variables termodinámicas");
+        return;
+    }
+    
+    // Recorrer las filas de procesos (no la fila de totales)
+    const rows = thermoTable.querySelectorAll('tbody tr:not(.total-row)');
+    
+    rows.forEach((row, rowIndex) => {
+        // Para cada tipo de variable (q, w, du, dh, ds)
+        ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, varIndex) => {
+            const cell = row.cells[varIndex + 1]; // +1 porque la primera columna es el proceso
+            if (!cell) return;
+            
+            const fieldId = `${variable}-${rowIndex}`;
+            const input = cell.querySelector('input');
+            
+            // Si hay un valor para este campo en userAnswers
+            if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
+                const originalUserAnswer = exerciseState.userAnswers[fieldId];
+                
+                // Si está validado, reemplazar input con div con formato original
+                if (exerciseState.validationState[fieldId]?.validated) {
+                    const status = exerciseState.validationState[fieldId].status;
+                    
+                    // Crear div con el formato original
+                    const validatedDiv = document.createElement('div');
+                    validatedDiv.id = fieldId;
+                    validatedDiv.className = `validated-value ${status}`;
+                    validatedDiv.textContent = originalUserAnswer; // Mostrar exactamente el valor original
+                    
+                    // Reemplazar input o contenido actual de la celda
+                    cell.innerHTML = '';
+                    cell.appendChild(validatedDiv);
+                }
+                // Si no está validado pero hay un input, establecer el valor
+                else if (input) {
+                    input.value = originalUserAnswer;
+                }
+            }
+        });
+    });
+    
+    // Restaurar valores en la fila de totales
+    const totalRow = thermoTable.querySelector('.total-row');
+    if (totalRow) {
+        ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, varIndex) => {
+            const totalId = `${variable}-total`;
+            const totalCell = totalRow.cells[varIndex + 1];
+            
+            if (totalCell && exerciseState.userAnswers[totalId]) {
+                totalCell.textContent = exerciseState.userAnswers[totalId];
+            }
+        });
+    }
 }
