@@ -3405,7 +3405,15 @@ function shareExercise() {
         cycleCounted: document.body.hasAttribute('data-cycle-counted') && 
                      document.body.getAttribute('data-cycle-counted') === 'true',
         // Recopilar las respuestas del usuario si hay alguna
-        userAnswers: {}
+        userAnswers: {},
+        // Estado de validación y puntuación
+        validationState: {
+            correctCount: parseInt(document.getElementById('correct-count').textContent) || 0,
+            incorrectCount: parseInt(document.getElementById('incorrect-count').textContent) || 0,
+            completedCount: parseInt(document.getElementById('completed-count').textContent) || 0,
+            totalPoints: parseInt(document.getElementById('total-points').textContent) || 0,
+            difficulty: parseInt(document.getElementById('difficulty-value').textContent.replace(/\D/g, '')) || 3
+        }
     };
     
     // Recopilar qué variables se muestran para cada punto
@@ -3426,36 +3434,47 @@ function shareExercise() {
         }
     });
     
-    // Capturar las respuestas que el usuario haya introducido hasta el momento
-    // Para los campos de procesos (q, w, du, dh, ds)
-    for (let i = 0; i < cycleData.length; i++) {
-        exerciseState.userAnswers[`q-${i}`] = document.getElementById(`q-${i}`).value;
-        exerciseState.userAnswers[`w-${i}`] = document.getElementById(`w-${i}`).value;
-        exerciseState.userAnswers[`du-${i}`] = document.getElementById(`du-${i}`).value;
-        exerciseState.userAnswers[`dh-${i}`] = document.getElementById(`dh-${i}`).value;
-        exerciseState.userAnswers[`ds-${i}`] = document.getElementById(`ds-${i}`).value;
-    }
+    // Capturar el estado de validación de todos los campos (tanto inputs como divs validados)
+    exerciseState.validatedFields = [];
     
-    // Para los campos de puntos (p, v, t)
-    for (let i = 0; i < cycleData.length; i++) {
-        // Solo incluir los campos que existen (que son editables)
-        if (document.getElementById(`p-${i}`)) {
-            exerciseState.userAnswers[`p-${i}`] = document.getElementById(`p-${i}`).value;
+    // Recopilar información de todos los inputs no validados
+    const allInputs = document.querySelectorAll('input[id^="q-"], input[id^="w-"], input[id^="du-"], input[id^="dh-"], input[id^="ds-"], input[id^="p-"], input[id^="v-"], input[id^="t-"]');
+    allInputs.forEach(input => {
+        if (!input.id.includes('-total')) {
+            // Guardar el valor actual del input
+            exerciseState.userAnswers[input.id] = input.value;
+            
+            // Si el input tiene un estado de validación, guardarlo
+            if (input.hasAttribute('data-validation-status')) {
+                exerciseState.validatedFields.push({
+                    id: input.id,
+                    value: input.value,
+                    isValidated: false,
+                    status: input.getAttribute('data-validation-status') || 'none'
+                });
+            }
         }
-        if (document.getElementById(`v-${i}`)) {
-            exerciseState.userAnswers[`v-${i}`] = document.getElementById(`v-${i}`).value;
-        }
-        if (document.getElementById(`t-${i}`)) {
-            exerciseState.userAnswers[`t-${i}`] = document.getElementById(`t-${i}`).value;
-        }
-    }
+    });
+    
+    // Guardar información de todos los divs que ya han sido validados
+    const validatedDivs = document.querySelectorAll('.validated-container');
+    validatedDivs.forEach(div => {
+        // Extraer toda la información relevante del div validado
+        exerciseState.validatedFields.push({
+            id: div.id,
+            userValue: div.getAttribute('data-user-value'),
+            correctValue: div.getAttribute('data-correct-value'),
+            isValidated: true,
+            status: div.getAttribute('data-validation-status'),
+            cssClass: div.className
+        });
+    });
     
     // Incluir también los totales
-    exerciseState.userAnswers[`q-total`] = document.getElementById(`q-total`).value;
-    exerciseState.userAnswers[`w-total`] = document.getElementById(`w-total`).value;
-    exerciseState.userAnswers[`du-total`] = document.getElementById(`du-total`).value;
-    exerciseState.userAnswers[`dh-total`] = document.getElementById(`dh-total`).value;
-    exerciseState.userAnswers[`ds-total`] = document.getElementById(`ds-total`).value;
+    const totalInputs = document.querySelectorAll('input[id$="-total"]');
+    totalInputs.forEach(input => {
+        exerciseState.userAnswers[input.id] = input.value;
+    });
     
     // Incluir información de los procesos para garantizar reproducibilidad
     exerciseState.processInfo = [];
@@ -3490,6 +3509,15 @@ function shareExercise() {
                 pointIndex++;
             }
         }
+    }
+    
+    // Incluir estado de la barra de energía
+    const energyBar = document.getElementById('energy-bar');
+    if (energyBar) {
+        exerciseState.energyBar = {
+            width: energyBar.style.width,
+            className: energyBar.className
+        };
     }
     
     // Convertir a JSON y codificar para URL
@@ -3579,7 +3607,7 @@ function loadSharedExercise() {
             }
             
             // Actualizar la dificultad del ciclo
-            const difficultyLevel = gamificationSystem.calculateDifficulty(cycleData);
+            const difficultyLevel = exerciseState.validationState?.difficulty || gamificationSystem.calculateDifficulty(cycleData);
             gameState.currentDifficulty = difficultyLevel;
             gamificationSystem.updateDifficultyDisplay(difficultyLevel);
             
@@ -3591,175 +3619,153 @@ function loadSharedExercise() {
             displayProblemData();
             setupTable();
             
-            // Restaurar las respuestas del usuario si existen
-            if (exerciseState.userAnswers) {
-                // Primero, solo restauramos los valores para que podamos calcular los totales
-                for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
-                    const inputElement = document.getElementById(inputId);
-                    if (inputElement && value && !inputId.includes('-total')) {
-                        inputElement.value = value;
+            // Restaurar el estado de validación y puntuación si existe
+            if (exerciseState.validationState) {
+                // Restaurar contadores
+                document.getElementById('correct-count').textContent = exerciseState.validationState.correctCount;
+                document.getElementById('incorrect-count').textContent = exerciseState.validationState.incorrectCount;
+                document.getElementById('completed-count').textContent = exerciseState.validationState.completedCount;
+                document.getElementById('total-points').textContent = exerciseState.validationState.totalPoints;
+                
+                // Actualizar el sistema de gamificación
+                gameState.correctAnswers = exerciseState.validationState.correctCount;
+                gameState.incorrectAnswers = exerciseState.validationState.incorrectCount;
+                gameState.points = exerciseState.validationState.totalPoints;
+                
+                // Actualizar barra de energía si existe
+                if (exerciseState.energyBar) {
+                    const energyBar = document.getElementById('energy-bar');
+                    if (energyBar) {
+                        energyBar.style.width = exerciseState.energyBar.width;
+                        energyBar.className = exerciseState.energyBar.className;
                     }
                 }
-                
-                // Actualizar los totales en tiempo real
-                updateRealTimeTotals();
-                
-                // Calcular los valores correctos para simular la validación
-                const correctValues = [];
-                
-                // Aquí calculamos los valores correctos igual que en validateResults
-                for (let i = 0; i < cycleData.length; i++) {
-                    const point = cycleData[i];
-                    const nextIndex = point.nextIndex;
-                    const nextPoint = cycleData[nextIndex];
-                    const processType = point.processType;
-                    
-                    // Capacidades caloríficas (gas monoatómico)
-                    const cv = 3 * R / 2; // J/(mol·K)
-                    const cp = 5 * R / 2; // J/(mol·K)
-                    
-                    // Calcular cambios de temperatura y volumen
-                    const deltaT = nextPoint.t - point.t;
-                    const deltaV = nextPoint.v - point.v;
-                    
-                    // Calcular valores según tipo de proceso
-                    let q, w, du, dh, ds;
-                    
-                    // Resto del código para calcular los valores correctos (igual que en validateResults)
-                    // Este código debe coincidir con el de validateResults para cada tipo de proceso
-                    
-                    switch (processType) {
-                        case 0: // Adiabático
-                            q = 0;
-                            du = numMoles * cv * deltaT;
-                            w = -du; // Primera ley: w = -du cuando q = 0
-                            dh = numMoles * cp * deltaT;
-                            ds = 0;
-                            break;
-                            
-                        case 1: // Isocórico
-                            w = 0; // No hay trabajo en proceso isocórico
-                            du = numMoles * cv * deltaT;
-                            q = du; // Primera ley: q = du cuando w = 0
-                            dh = numMoles * cp * deltaT;
-                            ds = numMoles * cv * Math.log(nextPoint.t / point.t);
-                            break;
-                            
-                        case 2: // Isotérmico
-                            // En isotérmico deltaT = 0, por lo que du = 0
-                            du = 0;
-                            dh = 0;
-                            // Trabajo en isotérmico: w = -nRT·ln(V2/V1)
-                            w = -numMoles * R * point.t * Math.log(nextPoint.v / point.v);
-                            q = -w; // Primera ley: q = -w cuando du = 0
-                            ds = q / point.t;
-                            break;
-                            
-                        case 3: // Isobárico
-                            // Trabajo en isobárico: w = P·ΔV
-                            w = point.p * 1000 * (nextPoint.v - point.v) / 1000; // kPa·L a J
-                            du = numMoles * cv * deltaT;
-                            q = numMoles * cp * deltaT;
-                            dh = q; // En isobárico: q = ΔH
-                            ds = numMoles * cp * Math.log(nextPoint.t / point.t);
-                            break;
-                            
-                        case 4: // Lineal P-V
-                            // Cálculos aproximados para proceso lineal
-                            du = numMoles * cv * deltaT;
-                            w = (point.p + nextPoint.p) / 2 * 1000 * deltaV / 1000; // kPa·L a J
-                            q = du + w; // Primera ley: q = du + w
-                            dh = du + point.p * 1000 * deltaV / 1000;
-                            ds = numMoles * cv * Math.log(nextPoint.t / point.t) + numMoles * R * Math.log(nextPoint.v / point.v);
-                            break;
-                            
-                        default:
-                            q = 0;
-                            w = 0;
-                            du = 0;
-                            dh = 0;
-                            ds = 0;
-                    }
-                    
-                    correctValues.push({
-                        q: parseFloat(q.toFixed(1)),
-                        w: parseFloat(w.toFixed(1)),
-                        du: parseFloat(du.toFixed(1)),
-                        dh: parseFloat(dh.toFixed(1)),
-                        ds: parseFloat(ds.toFixed(3))
-                    });
-                }
-                
-                // Ahora aplicamos la visualización especial a cada campo
-                for (let i = 0; i < cycleData.length; i++) {
-                    const fields = ['q', 'w', 'du', 'dh', 'ds'];
-                    
-                    fields.forEach(field => {
-                        const inputId = `${field}-${i}`;
-                        const input = document.getElementById(inputId);
-                        
-                        if (input && exerciseState.userAnswers[inputId]) {
-                            const userValue = exerciseState.userAnswers[inputId];
-                            const correctValue = correctValues[i][field];
-                            
-                            // Calcular si la respuesta es correcta (con una tolerancia del 1%)
-                            const difference = Math.abs(parseFloat(userValue) - correctValue);
-                            const tolerance = Math.abs(correctValue * 0.01);
-                            const isCorrect = !isNaN(parseFloat(userValue)) && difference <= tolerance;
-                            
-                            // Aplicar la visualización correspondiente
-                            if (isCorrect) {
-                                markAsCorrect(input, correctValue);
-                            } else {
-                                markAsIncorrect(input, correctValue);
-                            }
-                        }
-                    });
-                }
-                
-                // Para los campos de puntos
-                for (let i = 0; i < cycleData.length; i++) {
-                    const pointFields = ['p', 'v', 't'];
-                    
-                    pointFields.forEach(field => {
-                        const inputId = `${field}-${i}`;
-                        const input = document.getElementById(inputId);
-                        
-                        // Solo procesar si el input existe y tiene un valor del usuario
-                        if (input && exerciseState.userAnswers[inputId]) {
-                            const userValue = exerciseState.userAnswers[inputId];
-                            const correctValue = field === 'p' ? cycleData[i].p :
-                                               field === 'v' ? cycleData[i].v :
-                                               cycleData[i].t;
-                            
-                            // Calcular si la respuesta es correcta (con una tolerancia del 1%)
-                            const difference = Math.abs(parseFloat(userValue) - correctValue);
-                            const tolerance = Math.abs(correctValue * 0.01);
-                            const isCorrect = !isNaN(parseFloat(userValue)) && difference <= tolerance;
-                            
-                            // Aplicar la visualización correspondiente
-                            if (isCorrect) {
-                                markAsCorrect(input, correctValue);
-                            } else {
-                                markAsIncorrect(input, correctValue);
-                            }
-                        }
-                    });
-                }
-                
-                // Actualizar los totales en tiempo real
-                updateRealTimeTotals();
             }
             
-            console.log("Ejercicio compartido cargado con éxito");
+            // Restaurar las respuestas del usuario y valores en los inputs
+            if (exerciseState.userAnswers) {
+                // Primero, solo restauramos los valores para los inputs no validados
+                for (const [inputId, value] of Object.entries(exerciseState.userAnswers)) {
+                    const inputElement = document.getElementById(inputId);
+                    
+                    if (inputElement && inputElement.tagName === 'INPUT' && value && value.trim() !== '') {
+                        // No restaurar valores para inputs que serán reemplazados por elementos validados
+                        const willBeValidated = exerciseState.validatedFields?.some(
+                            field => field.id === inputId && field.isValidated
+                        );
+                        
+                        if (!willBeValidated) {
+                            inputElement.value = value;
+                        }
+                    }
+                }
+            }
+            
+            // Restaurar el estado de los campos validados
+            if (exerciseState.validatedFields && exerciseState.validatedFields.length > 0) {
+                // Primero, manejar los campos que se convierten en divs validados
+                const validatedFields = exerciseState.validatedFields.filter(field => field.isValidated);
+                
+                validatedFields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input && input.tagName === 'INPUT') {
+                        // Crear el elemento div validado con los datos restaurados
+                        const container = document.createElement('div');
+                        container.className = field.cssClass || 'validated-container ' + field.status;
+                        container.style.cssText = `
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            padding: 2px 5px;
+                            border-radius: 4px;
+                            background-color: ${field.status === 'correct' ? 'rgba(56, 161, 105, 0.2)' : 'rgba(229, 62, 62, 0.2)'};
+                            border: 1px solid ${field.status === 'correct' ? 'rgba(56, 161, 105, 0.4)' : 'rgba(229, 62, 62, 0.4)'};
+                            width: 100%;
+                            height: 100%;
+                            box-sizing: border-box;
+                            white-space: nowrap;
+                        `;
+                        
+                        // Valor del usuario
+                        const userValueSpan = document.createElement('span');
+                        userValueSpan.className = 'user-value';
+                        userValueSpan.textContent = field.userValue;
+                        userValueSpan.style.cssText = `
+                            font-weight: bold;
+                            margin-right: 8px;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        `;
+                        
+                        // Valor correcto
+                        const correctValueSpan = document.createElement('span');
+                        correctValueSpan.className = 'correct-value';
+                        correctValueSpan.innerHTML = `${field.status === 'correct' ? '✓' : '✗'} ${field.correctValue}`;
+                        correctValueSpan.style.cssText = `
+                            font-size: 0.75em;
+                            color: ${field.status === 'correct' ? '#16a34a' : '#dc2626'};
+                            white-space: nowrap;
+                        `;
+                        
+                        // Añadir elementos al contenedor
+                        container.appendChild(userValueSpan);
+                        container.appendChild(correctValueSpan);
+                        
+                        // Obtener la traducción
+                        let statusText = field.status === 'correct' ? "Correcto" : "Incorrecto";
+                        if (typeof getTranslation === 'function') {
+                            statusText = getTranslation(field.status);
+                        }
+                        
+                        // Actualizar el título
+                        container.title = `${statusText} - Tu valor: ${field.userValue} - Valor correcto: ${field.correctValue}`;
+                        
+                        // Configurar atributos para compatibilidad
+                        container.setAttribute('data-user-value', field.userValue);
+                        container.setAttribute('data-correct-value', field.correctValue);
+                        container.setAttribute('data-validation-status', field.status);
+                        container.setAttribute('data-validated', 'true');
+                        container.setAttribute('id', field.id);
+                        container.setAttribute('data-original-input-type', 'number');
+                        container.setAttribute('class', container.getAttribute('class') + ' validated-field');
+                        
+                        // Reemplazar el input por el div
+                        if (input && input.parentNode) {
+                            input.parentNode.replaceChild(container, input);
+                        }
+                    }
+                });
+                
+                // Ahora manejar inputs que tienen estados de validación pero no han sido transformados
+                const nonValidatedFields = exerciseState.validatedFields.filter(field => !field.isValidated);
+                
+                nonValidatedFields.forEach(field => {
+                    const input = document.getElementById(field.id);
+                    if (input && input.tagName === 'INPUT') {
+                        // Restaurar valor y estado de validación
+                        input.value = field.value || '';
+                        
+                        if (field.status && field.status !== 'none') {
+                            input.setAttribute('data-validation-status', field.status);
+                            input.classList.add(field.status);
+                        }
+                    }
+                });
+            }
+            
+            // Actualizar los totales en tiempo real
+            updateRealTimeTotals();
+            
+            // Actualizar el estado de los botones (como el exportar progreso)
+            checkAllFieldsCompleted();
+            
             return true;
         } catch (error) {
             console.error("Error al cargar el ejercicio compartido:", error);
-            console.error("Detalle del error:", error.message);
-            alert("Error al cargar el ejercicio compartido. El enlace podría estar corrupto.");
             return false;
         }
     }
+    
     return false;
 }
 
