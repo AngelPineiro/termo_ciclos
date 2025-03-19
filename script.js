@@ -3039,7 +3039,7 @@ function validateResults() {
             case 4: // Lineal P-V
                 // Cálculos aproximados para proceso lineal
                 const m = deltaP / deltaV; // units: kPa/L = 10^6 Pa/m^3
-                const a = point.p + m * deltaV; // units: kPa
+                const a = point.p - m * point.v; // units: kPa
 
                 du = numMoles * cv * deltaT;
                 w = a * deltaV + m * (nextPoint.v**2 - point.v**2) / 2; // units: J
