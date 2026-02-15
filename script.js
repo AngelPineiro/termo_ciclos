@@ -50,6 +50,30 @@ let gameState = {
 
 // Configuración del localStorage
 const GAME_STATE_KEY = 'thermoCycleGameState';
+const COUNTER_SERVICE = (() => {
+    const requestedService = String(
+        (typeof window !== 'undefined' && (window.THERMO_COUNTER_SERVICE || window.COUNTER_SERVICE)) || 'local'
+    ).toLowerCase();
+    const allowed = ['local', 'countapi', 'firebase', 'auto'];
+    return allowed.includes(requestedService) ? requestedService : 'local';
+})();
+const COUNTER_VISIT_KEY = 'thermoSimulatorVisits';
+const COUNTER_VISIT_TIME_KEY = 'thermoSimulatorLastVisit';
+const COUNTER_VISIT_THRESHOLD_MS = 30 * 60 * 1000;
+const COUNT_API_NAMESPACE = 'thermosimulator';
+const LOCAL_COUNTER_KEYS = {
+    correctValidations: 'thermoSimulatorCorrectValidations',
+    incorrectValidations: 'thermoSimulatorIncorrectValidations',
+    completedCycles: 'thermoSimulatorCompletedCycles'
+};
+const UI_PREFERENCES_KEY = 'thermoSimulatorUiPreferences';
+const CYCLE_TYPE_VALUES = ['random', 'carnot', 'otto', 'diesel', 'rankine', 'brayton'];
+const DEFAULT_UI_PREFERENCES = {
+    cycleType: 'random',
+    instructionsCollapsed: false,
+    cyclesInfoCollapsed: false,
+    activeCycleTab: 'carnot'
+};
 
 // Objeto para gestionar el sistema de puntuaciones y gamificación
 const gamificationSystem = {
@@ -438,9 +462,21 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(styleElement);
     
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const hasSharedState = searchParams.has('s') || searchParams.has('state') || hashParams.has('s') || hashParams.has('state');
+    applyUiPreferences(hasSharedState);
+
     // Configurar manejadores de eventos
     const generateBtn = document.getElementById('generate-cycle-btn');
     if (generateBtn) {
+        const cycleSelector = document.getElementById('cycle-type-selector');
+        if (cycleSelector) {
+            cycleSelector.addEventListener('change', function() {
+                saveUiPreferences({ cycleType: this.value });
+            });
+        }
+
         generateBtn.addEventListener('click', function() {
             // Si estamos en modo de visualización, preguntar antes de generar un nuevo ciclo
             if (viewCycle) {
@@ -517,6 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         collapseInstructionsBtn.textContent = 'Ocultar instrucciones';
                     }
+                    saveUiPreferences({ instructionsCollapsed: false });
                 } else {
                     // Ocultar instrucciones
                     instructions.classList.add('collapsed');
@@ -527,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         collapseInstructionsBtn.textContent = 'Mostrar instrucciones';
                     }
+                    saveUiPreferences({ instructionsCollapsed: true });
                 }
             }
         });
@@ -548,6 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         toggleCyclesInfoBtn.textContent = 'Ocultar información sobre ciclos';
                     }
+                    saveUiPreferences({ cyclesInfoCollapsed: false });
                 } else {
                     // Ocultar información de ciclos
                     cyclesInfo.classList.add('collapsed');
@@ -558,6 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         toggleCyclesInfoBtn.textContent = 'Mostrar información sobre ciclos termodinámicos';
                     }
+                    saveUiPreferences({ cyclesInfoCollapsed: true });
                 }
             }
         });
@@ -565,28 +605,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar pestañas de ciclos
     const cycleTabs = document.querySelectorAll('.cycle-tab');
-    const cycleContents = document.querySelectorAll('.cycle-tab-content');
 
     cycleTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // Remove active class from all tabs and contents
-            cycleTabs.forEach(t => t.classList.remove('active'));
-            cycleContents.forEach(c => c.classList.remove('active'));
-            
-            // Add active class to clicked tab
-            tab.classList.add('active');
-            
             // Get the cycle name from data-cycle attribute
             const cycleId = tab.getAttribute('data-cycle');
-            
-            // Add active class to corresponding content
-            const targetContent = document.getElementById(`${cycleId}-tab`);
-            if (targetContent) {
-                targetContent.classList.add('active');
-                console.log(`Activating content for ${cycleId}-tab`);
-            } else {
-                console.error(`No se encontró el contenido para el ciclo: ${cycleId}`);
-            }
+            activateCycleTab(cycleId);
+            saveUiPreferences({ activeCycleTab: cycleId });
         });
     });
     
@@ -594,8 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let sharedExerciseLoaded = false;
     
     // Cargar ejercicio compartido si existe en la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('state')) {
+    if (searchParams.has('s') || searchParams.has('state') || hashParams.has('s') || hashParams.has('state')) {
         sharedExerciseLoaded = loadSharedExercise();
     }
     
@@ -1843,118 +1867,6 @@ function generatePreviousLinearPoint(currentPoint) {
 }
 
 /**
- * Genera un punto según el tipo de proceso especificado
- */
-function generatePointByProcessType(startPoint, processType) {
-    switch (processType) {
-        case 0: return generateAdiabaticPoint(startPoint);
-        case 1: return generateIsochoricPoint(startPoint);
-        case 2: return generateIsothermalPoint(startPoint);
-        case 3: return generateIsobaricPoint(startPoint);
-        case 4: return generateLinearPoint(startPoint);
-        default: return generateLinearPoint(startPoint); // Por defecto, usamos lineal
-    }
-}
-
-/**
- * Genera un punto siguiendo un proceso adiabático desde un punto dado
- */
-function generateAdiabaticPoint(startPoint) {
-    // En un proceso adiabático: PV^γ = constante
-    const k = startPoint.p * Math.pow(startPoint.v, GAMMA);
-    
-    // Generar un volumen diferente al actual (aleatorio)
-    const direction = Math.random() > 0.5 ? 1 : -1; // Expansión o compresión
-    const vFactor = 1 + direction * (0.3 + Math.random() * 0.3); // Cambio de 30-60%
-    const v = startPoint.v * vFactor;
-    
-    // Calcular la presión correspondiente según la relación adiabática
-    const p = k / Math.pow(v, GAMMA);
-    
-    // Calcular temperatura con la ley de gases ideales (PV = nRT)
-    const t = (p * v) / (numMoles * R);
-    
-    return { p, v, t };
-}
-
-/**
- * Genera un punto siguiendo un proceso isocórico desde un punto dado
- */
-function generateIsochoricPoint(startPoint) {
-    // En un proceso isocórico: V = constante
-    const v = startPoint.v;
-    
-    // Generar una presión diferente a la actual (aleatoria)
-    const direction = Math.random() > 0.5 ? 1 : -1; // Aumento o disminución
-    const pFactor = 1 + direction * (0.3 + Math.random() * 0.3); // Cambio de 30-60%
-    const p = startPoint.p * pFactor;
-    
-    // Calcular temperatura con la ley de gases ideales (PV = nRT)
-    const t = (p * v) / (numMoles * R);
-    
-    return { p, v, t };
-}
-
-/**
- * Genera un punto siguiendo un proceso isotérmico desde un punto dado
- */
-function generateIsothermalPoint(startPoint) {
-    // En un proceso isotérmico: T = constante, PV = constante
-    const pv = startPoint.p * startPoint.v;
-    
-    // Generar un volumen diferente al actual (aleatorio)
-    const direction = Math.random() > 0.5 ? 1 : -1; // Expansión o compresión
-    const vFactor = 1 + direction * (0.3 + Math.random() * 0.3); // Cambio de 30-60%
-    const v = startPoint.v * vFactor;
-    
-    // Calcular la presión correspondiente según la relación isotérmica
-    const p = pv / v;
-    
-    // La temperatura es la misma
-    const t = startPoint.t;
-    
-    return { p, v, t };
-}
-
-/**
- * Genera un punto siguiendo un proceso isobárico desde un punto dado
- */
-function generateIsobaricPoint(startPoint) {
-    // En un proceso isobárico: P = constante
-    const p = startPoint.p;
-    
-    // Generar un volumen diferente al actual (aleatorio)
-    const direction = Math.random() > 0.5 ? 1 : -1; // Expansión o compresión
-    const vFactor = 1 + direction * (0.3 + Math.random() * 0.3); // Cambio de 30-60%
-    const v = startPoint.v * vFactor;
-    
-    // Calcular temperatura con la ley de gases ideales (PV = nRT)
-    const t = (p * v) / (numMoles * R);
-    
-    return { p, v, t };
-}
-
-/**
- * Genera un punto siguiendo un proceso lineal P-V desde un punto dado
- */
-function generateLinearPoint(startPoint) {
-    // Generar cambios aleatorios tanto en P como en V
-    const pDirection = Math.random() > 0.5 ? 1 : -1;
-    const vDirection = Math.random() > 0.5 ? 1 : -1;
-    
-    const pFactor = 1 + pDirection * (0.2 + Math.random() * 0.3); // Cambio en P de 20-50%
-    const vFactor = 1 + vDirection * (0.2 + Math.random() * 0.3); // Cambio en V de 20-50%
-    
-    const p = startPoint.p * pFactor;
-    const v = startPoint.v * vFactor;
-    
-    // Calcular temperatura con la ley de gases ideales (PV = nRT)
-    const t = (p * v) / (numMoles * R);
-    
-    return { p, v, t };
-}
-
-/**
  * Genera un valor aleatorio dentro de un rango
  */
 function getRandomValue(min, max) {
@@ -1988,12 +1900,45 @@ function drawGraph() {
             return;
         }
         
-        const containerWidth = graphContainer.clientWidth;
-        const containerHeight = containerWidth * 0.7; // Proporción 10:7
-        
+        const computed = window.getComputedStyle(graphContainer);
+        const paddingLeft = parseFloat(computed.paddingLeft) || 0;
+        const paddingRight = parseFloat(computed.paddingRight) || 0;
+        const paddingTop = parseFloat(computed.paddingTop) || 0;
+        const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+
+        // clientWidth/clientHeight incluyen padding; el canvas debe ajustarse al content-box
+        const containerWidth = Math.max(0, graphContainer.clientWidth - paddingLeft - paddingRight);
+        const desiredHeight = containerWidth * 0.7; // Proporción 10:7
+
+        // Ajustar tamaño del canvas sin ocultar leyenda/controles.
+        // Antes se usaba solo el ancho -> podía empujar los controles fuera del contenedor (overflow:hidden).
+        let canvasHeight = Math.round(desiredHeight);
+        const containerHeight = Math.max(0, graphContainer.clientHeight - paddingTop - paddingBottom);
+
+        if (Number.isFinite(containerHeight) && containerHeight > 0) {
+            const legend = graphContainer.querySelector('.legend');
+            const controls = graphContainer.querySelector('.graph-button-container');
+
+            const reservedHeight =
+                (legend ? legend.offsetHeight : 0) +
+                (controls ? controls.offsetHeight : 0) +
+                18; // margen extra por gaps/margins internos
+
+            const availableHeight = containerHeight - reservedHeight;
+            if (Number.isFinite(availableHeight) && availableHeight > 0) {
+                // Prioridad: no ocultar controles. Si el alto disponible es pequeño, reducimos el canvas.
+                const minCanvas = 120;
+                canvasHeight = Math.min(canvasHeight, Math.floor(Math.max(minCanvas, availableHeight)));
+            }
+        }
+
+        canvasHeight = Math.max(160, canvasHeight);
+
         // Ajustar tamaño del canvas
-        canvas.width = containerWidth;
-        canvas.height = containerHeight;
+        canvas.width = Math.floor(containerWidth);
+        canvas.height = Math.floor(canvasHeight);
+        canvas.style.width = `${Math.floor(containerWidth)}px`;
+        canvas.style.height = `${Math.floor(canvasHeight)}px`;
         
         console.log(`Dimensiones del canvas: ${canvas.width}x${canvas.height}`);
         
@@ -3397,236 +3342,267 @@ function markAsIncorrect(input, correctValue) {
 /**
  * Función para compartir el estado actual del ejercicio
  */
-function shareExercise() {
-    console.log("Iniciando shareExercise");
-    
-    const exerciseState = {
-        cycleType: currentCycleType || document.getElementById('cycle-type-selector').value,
-        cycleData: JSON.parse(JSON.stringify(cycleData)),
-        numMoles: numMoles,
-        cycleCounted: document.body.hasAttribute('data-cycle-counted') && 
-                     document.body.getAttribute('data-cycle-counted') === 'true',
-        userAnswers: {},
-        validationState: {}
+
+function encodeSharedFieldId(variable, index) {
+    // Encodifica ids tipo p-0, du-2... en un entero compacto para el payload.
+    // kind * 100 + index
+    let kind = -1;
+    switch (variable) {
+        case 'p': kind = 0; break;
+        case 'v': kind = 1; break;
+        case 't': kind = 2; break;
+        case 'q': kind = 3; break;
+        case 'w': kind = 4; break;
+        case 'du': kind = 5; break;
+        case 'dh': kind = 6; break;
+        case 'ds': kind = 7; break;
+        default: kind = -1;
+    }
+    if (kind < 0) return null;
+    return kind * 100 + index;
+}
+
+function decodeSharedFieldId(code) {
+    const kind = Math.floor(code / 100);
+    const index = code % 100;
+    switch (kind) {
+        case 0: return `p-${index}`;
+        case 1: return `v-${index}`;
+        case 2: return `t-${index}`;
+        case 3: return `q-${index}`;
+        case 4: return `w-${index}`;
+        case 5: return `du-${index}`;
+        case 6: return `dh-${index}`;
+        case 7: return `ds-${index}`;
+        default: return null;
+    }
+}
+
+function extractUserValueFromValidatedText(text) {
+    if (!text) return '';
+    const trimmed = String(text).trim();
+    const m = trimmed.match(/^(.+?)(?:✓|✗)\s*/);
+    return (m ? m[1] : trimmed).trim();
+}
+
+function buildSharePayloadV2() {
+    const payload = {
+        v: 2,
+        ct: currentCycleType || document.getElementById('cycle-type-selector').value,
+        cd: cycleData.map((p, idx) => [p.p, p.v, p.t, p.nextIndex, p.processType, idx]),
+        n: numMoles,
+        cc: document.body.getAttribute('data-cycle-counted') === 'true',
+        gv: [],
+        a: [],
+        vs: []
     };
     
-    // Recopilar qué variables se muestran y sus valores originales para cada punto
-    exerciseState.shownVariables = {};
-    const pointCells = document.querySelector('.points-table tbody').querySelectorAll('tr');
-    
-    // Primero recopilamos los valores de la tabla de puntos
-    pointCells.forEach((row, index) => {
+    // 1) Mascara de variables dadas (P/V/T) por punto
+    const pointRows = document.querySelectorAll('.points-table tbody tr');
+    pointRows.forEach((row, rowIndex) => {
         const cells = row.querySelectorAll('td');
-        if (cells.length >= 4) {
-            const pointIndex = index + 1;
+        if (cells.length < 4) return;
+        
+        const pCell = cells[1];
+        const vCell = cells[2];
+        const tCell = cells[3];
+        
+        const pGiven = !pCell.querySelector('input') && !pCell.querySelector('.validated-container');
+        const vGiven = !vCell.querySelector('input') && !vCell.querySelector('.validated-container');
+        const tGiven = !tCell.querySelector('input') && !tCell.querySelector('.validated-container');
+        
+        let mask = 0;
+        if (pGiven) mask |= 1;
+        if (vGiven) mask |= 2;
+        if (tGiven) mask |= 4;
+        payload.gv[rowIndex] = mask;
+    });
+    
+    // 2) Respuestas y validaciones (p/v/t)
+    pointRows.forEach((row, rowIndex) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) return;
+        
+        ['p', 'v', 't'].forEach((variable, varIndex) => {
+            const cell = cells[varIndex + 1];
+            const code = encodeSharedFieldId(variable, rowIndex);
+            if (code == null) return;
             
-            // Configurar shownVariables
-            exerciseState.shownVariables[pointIndex] = {
-                p: {
-                    shown: cells[1].textContent !== '—',
-                    editable: cells[1].querySelector('input') !== null || cells[1].querySelector('.validated-container') !== null,
-                    originalValue: cycleData[index].p
-                },
-                v: {
-                    shown: cells[2].textContent !== '—',
-                    editable: cells[2].querySelector('input') !== null || cells[2].querySelector('.validated-container') !== null,
-                    originalValue: cycleData[index].v
-                },
-                t: {
-                    shown: cells[3].textContent !== '—',
-                    editable: cells[3].querySelector('input') !== null || cells[3].querySelector('.validated-container') !== null,
-                    originalValue: cycleData[index].t
-                }
-            };
-
-            // Procesar TODOS los campos, validados o no
-            ['p', 'v', 't'].forEach((field, fieldIndex) => {
-                const cell = cells[fieldIndex + 1]; // +1 porque la primera celda es el número de punto
-                const validatedContainer = cell.querySelector('.validated-container');
+            const validatedEl = cell.querySelector('.validated-container') || cell.querySelector('.validated-value');
+            if (validatedEl) {
+                const statusCode = validatedEl.classList.contains('correct') ? 1 : (validatedEl.classList.contains('incorrect') ? 2 : 0);
+                const userValue = validatedEl.getAttribute('data-user-value') || extractUserValueFromValidatedText(validatedEl.textContent);
                 
-                // Si hay un contenedor validado
-                if (validatedContainer) {
-                    const userValue = validatedContainer.getAttribute('data-user-value') || 
-                                     validatedContainer.getAttribute('data-original-input-value') || 
-                                     validatedContainer.textContent.trim();
-                    const correctValue = validatedContainer.getAttribute('data-correct-value') || 
-                                        validatedContainer.getAttribute('data-value');
-                    const isCorrect = validatedContainer.classList.contains('correct');
-                    
-                    exerciseState.userAnswers[`${field}-${index}`] = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
-                    
-                    // También registramos el estado de validación aquí para garantizar coherencia
-                    exerciseState.validationState[`${field}-${index}`] = {
-                        validated: true,
-                        status: isCorrect ? 'correct' : 'incorrect'
-                    };
-                }
-                // Si no hay contenedor validado pero tiene input
-                else if (cell.querySelector('input')) {
-                    const input = cell.querySelector('input');
-                    if (input && input.value !== '') {
-                        exerciseState.userAnswers[`${field}-${index}`] = input.value;
-                    }
-                }
-            });
-        }
-    });
-    
-    // Recopilamos los valores de la tabla de variables termodinámicas
-    const thermoTable = document.getElementById('thermo-table');
-    if (thermoTable) {
-        const rows = thermoTable.querySelectorAll('tbody tr');
-        rows.forEach((row, index) => {
-            if (index < cycleData.length) {
-                ['q', 'w', 'du', 'dh', 'ds'].forEach(field => {
-                    // Buscar el input o elemento validado directamente en la fila
-                    const cell = row.querySelector(`td:nth-child(${getThermoCellIndex(field)})`);
-                    const validatedElement = cell.querySelector('.validated-container');
-                    
-                    if (validatedElement) {
-                        const userValue = validatedElement.getAttribute('data-user-value') || validatedElement.textContent.trim();
-                        const correctValue = validatedElement.getAttribute('data-correct-value');
-                        const isCorrect = validatedElement.classList.contains('correct');
-                        
-                        exerciseState.userAnswers[`${field}-${index}`] = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
-                        
-                        // Actualizar también validationState
-                        exerciseState.validationState[`${field}-${index}`] = {
-                            validated: true,
-                            status: isCorrect ? 'correct' : 'incorrect'
-                        };
-                    } 
-                    else {
-                        const input = document.getElementById(`${field}-${index}`);
-                        if (input && input.value !== '') {
-                            exerciseState.userAnswers[`${field}-${index}`] = input.value;
-                        }
-                    }
-                });
-            }
-        });
-    }
-    
-    // Incluir los totales
-    const totalFields = ['q-total', 'w-total', 'du-total', 'dh-total', 'ds-total'];
-    totalFields.forEach(field => {
-        const input = document.getElementById(field);
-        if (input) {
-            let value = '';
-            if (input.hasAttribute('data-validated')) {
-                const userValue = input.getAttribute('data-user-value') || input.value;
-                const correctValue = input.getAttribute('data-correct-value');
-                const isCorrect = input.getAttribute('data-validation-status') === 'correct';
-                value = `${userValue}${isCorrect ? '✓' : '✗'} ${correctValue}`;
-            } else {
-                value = input.value;
-            }
-            if (value !== '') {
-                exerciseState.userAnswers[field] = value;
-            }
-        }
-    });
-    
-    // Función auxiliar para obtener el índice de la celda según el campo
-    function getThermoCellIndex(field) {
-        switch(field) {
-            case 'q': return 2;
-            case 'w': return 3;
-            case 'du': return 4;
-            case 'dh': return 5;
-            case 'ds': return 6;
-            default: return 0;
-        }
-    }
-    
-    // Recopilamos el estado de validación de todos los campos que no se hayan procesado ya
-    // Para los campos de puntos que no hemos procesado directamente
-    for (let i = 0; i < cycleData.length; i++) {
-        ['p', 'v', 't', 'q', 'w', 'du', 'dh', 'ds'].forEach(field => {
-            // Si ya lo procesamos, omitir
-            if (exerciseState.validationState[`${field}-${i}`]) {
+                if (userValue !== '') payload.a.push([code, String(userValue).trim()]);
+                if (statusCode) payload.vs.push([code, statusCode]);
                 return;
             }
             
-            const input = document.getElementById(`${field}-${i}`);
-            // Para los campos de puntos, también podemos buscar por index+1
-            const inputAlt = field === 'p' || field === 'v' || field === 't' ? 
-                           document.getElementById(`${field}-${i+1}`) : null;
-            
-            const elementToCheck = input || inputAlt;
-            
-            if (elementToCheck) {
-                exerciseState.validationState[`${field}-${i}`] = {
-                    validated: elementToCheck.hasAttribute('data-validated'),
-                    status: elementToCheck.getAttribute('data-validation-status') || 'none'
-                };
+            const input = cell.querySelector('input');
+            if (input && input.value !== '') {
+                payload.a.push([code, input.value.trim()]);
             }
         });
-    }
-    
-    // Para los totales
-    totalFields.forEach(field => {
-        if (!exerciseState.validationState[field]) {
-            const input = document.getElementById(field);
-            if (input) {
-                exerciseState.validationState[field] = {
-                    validated: input.hasAttribute('data-validated'),
-                    status: input.getAttribute('data-validation-status') || 'none'
-                };
-            }
-        }
     });
     
-    // Incluir información de los procesos para garantizar reproducibilidad
-    exerciseState.processInfo = [];
-    const processesContainer = document.querySelector('.processes');
-    if (processesContainer) {
-        const processElements = processesContainer.querySelectorAll('.data-value');
-        processElements.forEach((processElement, index) => {
-            exerciseState.processInfo.push({
-                index: index,
-                displayText: processElement.textContent,
-                processType: cycleData[index]?.processType
+    // 3) Respuestas y validaciones (q/w/du/dh/ds)
+    const thermoTable = document.getElementById('thermo-table');
+    if (thermoTable) {
+        const rows = thermoTable.querySelectorAll('tbody tr:not(.total-row)');
+        rows.forEach((row, rowIndex) => {
+            ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, varIndex) => {
+                const cell = row.cells[varIndex + 1];
+                if (!cell) return;
+                
+                const code = encodeSharedFieldId(variable, rowIndex);
+                if (code == null) return;
+                
+                const validatedEl = cell.querySelector('.validated-container') || cell.querySelector('.validated-value');
+                if (validatedEl) {
+                    const statusCode = validatedEl.classList.contains('correct') ? 1 : (validatedEl.classList.contains('incorrect') ? 2 : 0);
+                    const userValue = validatedEl.getAttribute('data-user-value') || extractUserValueFromValidatedText(validatedEl.textContent);
+                    
+                    if (userValue !== '') payload.a.push([code, String(userValue).trim()]);
+                    if (statusCode) payload.vs.push([code, statusCode]);
+                    return;
+                }
+                
+                const input = cell.querySelector('input');
+                if (input && input.value !== '') {
+                    payload.a.push([code, input.value.trim()]);
+                }
             });
         });
     }
     
-    // Incluir los puntos del ciclo con todos sus detalles
-    exerciseState.points = [];
-    const pointsContainer = document.querySelector('.points');
-    if (pointsContainer) {
-        const pointElements = pointsContainer.querySelectorAll('.data-value');
-        let pointIndex = 0;
-        for (let i = 0; i < pointElements.length; i += 3) {
-            if (i + 2 < pointElements.length) {
-                exerciseState.points.push({
-                    index: pointIndex,
-                    p: pointElements[i].textContent,
-                    v: pointElements[i + 1].textContent,
-                    t: pointElements[i + 2].textContent
-                });
-                pointIndex++;
-            }
+    return payload;
+}
+
+function toDisplayVariablesFromShownVariables(shownVars) {
+    if (!shownVars || typeof shownVars !== 'object') return null;
+    
+    const out = {};
+    Object.keys(shownVars).forEach((key) => {
+        const sv = shownVars[key];
+        if (!sv) return;
+        
+        // Formato legacy: { p: { shown, editable, originalValue }, ... }
+        if (sv.p && typeof sv.p === 'object' && 'shown' in sv.p) {
+            out[key] = {
+                p: !!sv.p.shown,
+                v: !!sv.v?.shown,
+                t: !!sv.t?.shown,
+            };
+            return;
         }
+        
+        // Formato display: { p: boolean, v: boolean, t: boolean }
+        if (typeof sv.p === 'boolean' || typeof sv.v === 'boolean' || typeof sv.t === 'boolean') {
+            out[key] = { p: !!sv.p, v: !!sv.v, t: !!sv.t };
+        }
+    });
+    
+    return out;
+}
+
+function expandSharePayloadV2(payload) {
+    const cd = Array.isArray(payload.cd) ? payload.cd : [];
+    const gv = Array.isArray(payload.gv) ? payload.gv : [];
+    
+    const expandedCycleData = cd.map((arr, idx) => ({
+        p: arr[0],
+        v: arr[1],
+        t: arr[2],
+        nextIndex: arr[3],
+        processType: arr[4],
+        index: idx
+    }));
+    
+    const shownVariables = {};
+    const displayVars = {};
+    for (let i = 0; i < expandedCycleData.length; i++) {
+        const pointNumber = i + 1;
+        const mask = gv[i] || 0;
+        const pGiven = (mask & 1) !== 0;
+        const vGiven = (mask & 2) !== 0;
+        const tGiven = (mask & 4) !== 0;
+        
+        displayVars[pointNumber] = { p: pGiven, v: vGiven, t: tGiven };
+        shownVariables[pointNumber] = {
+            p: { shown: pGiven, editable: !pGiven, originalValue: expandedCycleData[i].p },
+            v: { shown: vGiven, editable: !vGiven, originalValue: expandedCycleData[i].v },
+            t: { shown: tGiven, editable: !tGiven, originalValue: expandedCycleData[i].t },
+        };
     }
     
-    // Convertir a JSON y codificar para URL
-    const stateJson = JSON.stringify(exerciseState);
-    const stateBase64 = btoa(encodeURIComponent(stateJson));
+    const userAnswers = {};
+    const validationState = {};
     
-    // Crear URL con el estado
-    const shareUrl = `${window.location.href.split('?')[0]}?state=${stateBase64}`;
+    if (Array.isArray(payload.a)) {
+        payload.a.forEach((entry) => {
+            if (!entry || entry.length < 2) return;
+            const id = decodeSharedFieldId(entry[0]);
+            if (!id) return;
+            userAnswers[id] = String(entry[1]);
+        });
+    }
+    
+    if (Array.isArray(payload.vs)) {
+        payload.vs.forEach((entry) => {
+            if (!entry || entry.length < 2) return;
+            const id = decodeSharedFieldId(entry[0]);
+            if (!id) return;
+            const status = entry[1] === 1 ? 'correct' : (entry[1] === 2 ? 'incorrect' : 'none');
+            if (status === 'none') return;
+            validationState[id] = { validated: true, status };
+        });
+    }
+    
+    return {
+        cycleType: payload.ct,
+        cycleData: expandedCycleData,
+        numMoles: payload.n,
+        cycleCounted: !!payload.cc,
+        shownVariables,
+        userAnswers,
+        validationState,
+        _displayVars: displayVars,
+    };
+}
+
+function shareExercise() {
+    console.log("Iniciando shareExercise");
+    
+    if (!cycleData || cycleData.length === 0) {
+        showFeedbackMessage('Genera un ciclo antes de compartir.', 'error');
+        return;
+    }
+    
+    const payload = buildSharePayloadV2();
+    const stateJson = JSON.stringify(payload);
+    const baseUrl = window.location.href.split('#')[0].split('?')[0];
+    
+    let shareUrl;
+    if (typeof LZString !== 'undefined' && LZString && typeof LZString.compressToEncodedURIComponent === 'function') {
+        const compressedState = LZString.compressToEncodedURIComponent(stateJson);
+        // Usar hash para evitar limites del servidor/proxy en la querystring
+        shareUrl = `${baseUrl}#s=${compressedState}`;
+    } else {
+        // Fallback sin compresion (aun asi mucho mas pequeno que el state legacy)
+        const stateBase64 = btoa(encodeURIComponent(stateJson));
+        shareUrl = `${baseUrl}#state=${stateBase64}`;
+    }
     
     // Mostrar diálogo con la URL para compartir
     const dialogHtml = `
-        <div class="share-dialog">
-            <h3>Compartir Ejercicio</h3>
+        <div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title">
+            <h3 id="share-dialog-title">Compartir Ejercicio</h3>
             <p>Copia el siguiente enlace para compartir el ejercicio en su estado actual:</p>
             <div class="share-url-container">
-                <input type="text" id="share-url" value="${shareUrl}" readonly>
-                <button id="copy-button">Copiar</button>
+                <input type="text" id="share-url" value="${shareUrl}" readonly aria-label="Enlace para compartir">
+                <button id="copy-button" type="button">Copiar</button>
             </div>
-            <button id="close-dialog">Cerrar</button>
+            <button id="close-dialog" type="button">Cerrar</button>
         </div>
     `;
   
@@ -3636,16 +3612,80 @@ function shareExercise() {
     dialogOverlay.innerHTML = dialogHtml;
     document.body.appendChild(dialogOverlay);
     
-    // Configurar eventos de los botones
-    document.getElementById('copy-button').addEventListener('click', function() {
-        const shareUrlInput = document.getElementById('share-url');
+    const shareUrlInput = dialogOverlay.querySelector('#share-url');
+    const copyButton = dialogOverlay.querySelector('#copy-button');
+    const closeButton = dialogOverlay.querySelector('#close-dialog');
+
+    const closeDialog = () => {
+        document.removeEventListener('keydown', onKeydown);
+        if (dialogOverlay && dialogOverlay.parentNode) {
+            dialogOverlay.parentNode.removeChild(dialogOverlay);
+        }
+    };
+
+    const onKeydown = (e) => {
+        if (e.key === 'Escape') {
+            closeDialog();
+        }
+    };
+
+    document.addEventListener('keydown', onKeydown);
+
+    // Mejor UX: enfocar y seleccionar el enlace al abrir
+    if (shareUrlInput) {
+        shareUrlInput.focus();
         shareUrlInput.select();
-        document.execCommand('copy');
-        this.textContent = '¡Copiado!';
-    });
-    
-    document.getElementById('close-dialog').addEventListener('click', function() {
-        document.body.removeChild(dialogOverlay);
+    }
+
+    if (copyButton) {
+        copyButton.addEventListener('click', async function() {
+            const value = shareUrlInput ? shareUrlInput.value : '';
+            if (!value) return;
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(value);
+                } else {
+                    if (shareUrlInput) {
+                        shareUrlInput.focus();
+                        shareUrlInput.select();
+                    }
+                    document.execCommand('copy');
+                }
+
+                copyButton.textContent = '¡Copiado!';
+                copyButton.classList.add('copied');
+                window.setTimeout(() => {
+                    if (copyButton && copyButton.isConnected) {
+                        copyButton.textContent = 'Copiar';
+                        copyButton.classList.remove('copied');
+                    }
+                }, 1500);
+            } catch (error) {
+                console.error('Error al copiar el enlace:', error);
+                try {
+                    if (shareUrlInput) {
+                        shareUrlInput.focus();
+                        shareUrlInput.select();
+                    }
+                    document.execCommand('copy');
+                    copyButton.textContent = '¡Copiado!';
+                } catch (e) {
+                    // Si no podemos copiar, al menos dejamos el enlace seleccionado.
+                }
+            }
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', closeDialog);
+    }
+
+    // Cerrar al clicar fuera del diálogo
+    dialogOverlay.addEventListener('click', function(e) {
+        if (e.target === dialogOverlay) {
+            closeDialog();
+        }
     });
 
     // //Esto debo borrarlo, sólo es para
@@ -3657,390 +3697,6 @@ function shareExercise() {
     // a.click();
 }
 
-/**
- * Función para cargar un ejercicio compartido
- * @returns {boolean} - true si se cargó correctamente un ejercicio compartido, false en caso contrario
- */
-function loadSharedExercise() {
-    // Verificar si hay un estado en la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const stateParam = urlParams.get('state');
-    
-    if (stateParam) {
-        try {
-            // Limpiar y validar la cadena base64
-            let cleanBase64 = stateParam.trim();
-            // Asegurar que la longitud sea múltiplo de 4 añadiendo padding si es necesario
-            while (cleanBase64.length % 4 !== 0) {
-                cleanBase64 += '=';
-            }
-            // Reemplazar caracteres problemáticos (puede que algunos navegadores los modifiquen)
-            cleanBase64 = cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
-            
-            // Intentar decodificar con manejo de errores
-            let decodedString;
-            try {
-                decodedString = atob(cleanBase64);
-            } catch (e) {
-                console.error("Error en decodificación base64:", e);
-                throw new Error("La cadena base64 no está correctamente codificada. Compruebe que el enlace es correcto.");
-            }
-            
-            // Decodificar URL
-            const stateJson = decodeURIComponent(decodedString);
-            const exerciseState = JSON.parse(stateJson);
-            console.log("Estado compartido cargado:", exerciseState);
-            
-            // Restaurar el tipo de ciclo
-            document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
-            currentCycleType = exerciseState.cycleType;
-            
-            // Restaurar los datos del ciclo
-            cycleData = exerciseState.cycleData;
-            numMoles = exerciseState.numMoles || 1;
-            
-            // Restaurar el estado de contabilización del ciclo
-            if (exerciseState.cycleCounted) {
-                document.body.setAttribute('data-cycle-counted', 'true');
-                console.log("El ciclo compartido ya ha sido contabilizado como completado");
-            } else {
-                document.body.removeAttribute('data-cycle-counted');
-                console.log("El ciclo compartido no ha sido contabilizado como completado");
-            }
-            
-            // Guardar las variables mostradas para usarlas en displayProblemData
-            if (exerciseState.shownVariables) {
-                shownVariables = exerciseState.shownVariables;
-                console.log("Variables mostradas cargadas del ejercicio compartido:", shownVariables);
-            }
-            
-            // Dibujar el ciclo y mostrar datos
-            drawGraph();
-            displayProblemData();
-            
-            // Configurar la tabla
-            setupTable();
-            
-            // Restaurar las respuestas del usuario y estados de validación
-            if (exerciseState.userAnswers && exerciseState.validationState) {
-                restoreUserAnswersAndValidation(exerciseState);
-            }
-            
-            // Informar al usuario que se ha cargado un ejercicio compartido
-            showFeedbackMessage('Se ha cargado un ejercicio compartido', 'info');
-            
-            return true;
-        } catch (error) {
-            console.error('Error al cargar el ejercicio compartido:', error);
-            alert('Error al cargar el ejercicio compartido: ' + error.message);
-            return false;
-        }
-    }
-    
-    return false;
-}
-
-/**
- * Muestra los datos del problema desde un estado compartido
- * @param {Object} exerciseState - El estado del ejercicio
- */
-function displayProblemDataFromShared(exerciseState) {
-    // Limpiar datos anteriores
-    document.querySelector('.processes').innerHTML = '';
-    document.querySelector('.points').innerHTML = '';
-    
-    // Mostrar datos del gas
-    const gasType = document.querySelector('.gas');
-    const rConstant = document.querySelector('.r-constant');
-    const amount = document.querySelector('.property-value.amount');
-    
-    if (exerciseState.cycleData[0].gamma === 1.4) {
-        gasType.textContent = "Gas ideal diatómico (γ = 7/5)";
-    } else {
-        gasType.textContent = "Gas ideal monoatómico (γ = 5/3)";
-    }
-    
-    rConstant.textContent = "8.31 J/(mol·K)";
-    amount.textContent = `${exerciseState.numMoles} mol`;
-    
-    // Crear tabla para los puntos
-    const pointsContainer = document.querySelector('.points');
-    const pointsTable = document.createElement('table');
-    pointsTable.className = 'data-table';
-    
-    // Crear encabezado de la tabla
-    const pointsHeader = document.createElement('tr');
-    ['Punto', 'P (kPa)', 'V (L)', 'T (K)'].forEach(headerText => {
-        const th = document.createElement('th');
-        th.textContent = headerText;
-        pointsHeader.appendChild(th);
-    });
-    pointsTable.appendChild(pointsHeader);
-    
-    // Mostrar datos de los puntos usando shownVariables
-    for (let i = 1; i <= exerciseState.cycleData.length; i++) {
-        const pointIndex = i;
-        const dataIndex = i - 1;
-        const pointData = exerciseState.cycleData[dataIndex];
-        const shownVars = exerciseState.shownVariables[pointIndex] || {};
-        
-        const row = document.createElement('tr');
-        
-        // Columna Punto
-        const pointCell = document.createElement('td');
-        pointCell.textContent = pointIndex;
-        row.appendChild(pointCell);
-        
-        // Columna P
-        const pCell = document.createElement('td');
-        if (shownVars.p && shownVars.p.shown) {
-            if (shownVars.p.editable) {
-                const pInput = document.createElement('input');
-                pInput.type = 'text';
-                pInput.id = `p-${pointIndex}`;
-                pInput.className = 'point-input';
-                pInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
-                pInput.dataset.correctValue = pointData.p.toFixed(2);
-                pCell.appendChild(pInput);
-            } else {
-                pCell.textContent = pointData.p.toFixed(2);
-            }
-        } else {
-            pCell.textContent = '-';
-        }
-        row.appendChild(pCell);
-        
-        // Columna V
-        const vCell = document.createElement('td');
-        if (shownVars.v && shownVars.v.shown) {
-            if (shownVars.v.editable) {
-                const vInput = document.createElement('input');
-                vInput.type = 'text';
-                vInput.id = `v-${pointIndex}`;
-                vInput.className = 'point-input';
-                vInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
-                vInput.dataset.correctValue = pointData.v.toFixed(2);
-                vCell.appendChild(vInput);
-            } else {
-                vCell.textContent = pointData.v.toFixed(2);
-            }
-        } else {
-            vCell.textContent = '-';
-        }
-        row.appendChild(vCell);
-        
-        // Columna T
-        const tCell = document.createElement('td');
-        if (shownVars.t && shownVars.t.shown) {
-            if (shownVars.t.editable) {
-                const tInput = document.createElement('input');
-                tInput.type = 'text';
-                tInput.id = `t-${pointIndex}`;
-                tInput.className = 'point-input';
-                tInput.value = "";  // Será rellenado en restoreUserAnswersAndValidation
-                tInput.dataset.correctValue = pointData.t.toFixed(2);
-                tCell.appendChild(tInput);
-            } else {
-                tCell.textContent = pointData.t.toFixed(2);
-            }
-        } else {
-            tCell.textContent = '-';
-        }
-        row.appendChild(tCell);
-        
-        pointsTable.appendChild(row);
-    }
-    
-    pointsContainer.appendChild(pointsTable);
-    
-    // Mostrar información de los procesos
-    const processesContainer = document.querySelector('.processes');
-    const processesTable = document.createElement('table');
-    processesTable.className = 'data-table';
-    
-    // Encabezado de tabla para procesos
-    const processHeader = document.createElement('tr');
-    ['Proceso', 'Tipo'].forEach(headerText => {
-        const th = document.createElement('th');
-        th.textContent = headerText;
-        processHeader.appendChild(th);
-    });
-    processesTable.appendChild(processHeader);
-    
-    // Mostrar datos de los procesos
-    for (let i = 0; i < exerciseState.cycleData.length; i++) {
-        const processRow = document.createElement('tr');
-        
-        const processIndexCell = document.createElement('td');
-        const startIndex = i + 1;
-        const endIndex = (i + 1) % exerciseState.cycleData.length + 1;
-        processIndexCell.textContent = `${startIndex} → ${endIndex}`;
-        processRow.appendChild(processIndexCell);
-        
-        const processTypeCell = document.createElement('td');
-        const processType = exerciseState.cycleData[i].processType;
-        const processNames = [
-            "Desconocido",
-            "Adiabático",
-            "Isotérmico",
-            "Isobárico",
-            "Isocórico",
-            "Lineal P-V"
-        ];
-        processTypeCell.textContent = processNames[processType] || "Desconocido";
-        processRow.appendChild(processTypeCell);
-        
-        processesTable.appendChild(processRow);
-    }
-    
-    processesContainer.appendChild(processesTable);
-}
-
-/**
- * Restaura las respuestas del usuario y los estados de validación
- * @param {Object} exerciseState - El estado del ejercicio
- */
-function restoreUserAnswersAndValidation(exerciseState) {
-    console.log("Restaurando respuestas de usuario y validaciones:", exerciseState.userAnswers);
-    
-    // Procesa un valor validado y extrae su valor numérico
-    const processValueFromString = (valueString) => {
-        if (!valueString) return "";
-        
-        // Formato: "-3✗ 61.30" o "0✓ 0.00"
-        const matchValidated = valueString.match(/^(-?\d+)(✓|✗)\s+(.+)$/);
-        if (matchValidated) {
-            return matchValidated[3]; // El valor numérico
-        }
-        return valueString;
-    };
-    
-    // Revisa si un campo está validado
-    const isFieldValidated = (fieldId) => {
-        return exerciseState.validationState && 
-               exerciseState.validationState[fieldId] && 
-               exerciseState.validationState[fieldId].validated;
-    };
-    
-    // Obtiene el estado de validación para un campo
-    const getValidationStatus = (fieldId) => {
-        if (!exerciseState.validationState || !exerciseState.validationState[fieldId]) {
-            return null;
-        }
-        return exerciseState.validationState[fieldId].status;
-    };
-    
-    // Restaura los campos de la tabla de puntos
-    for (let i = 1; i <= exerciseState.cycleData.length; i++) {
-        ['p', 'v', 't'].forEach(variable => {
-            const fieldId = `${variable}-${i}`;
-            const input = document.getElementById(fieldId);
-            
-            if (!input) {
-                // Si no existe el input, continuamos
-                return; // Usar return en lugar de continue dentro del forEach
-            }
-            
-            // Si hay un valor para este campo
-            if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
-                input.value = processValueFromString(exerciseState.userAnswers[fieldId]);
-                
-                // Si está validado
-                if (isFieldValidated(fieldId)) {
-                    const status = getValidationStatus(fieldId);
-                    input.readOnly = true;
-                    
-                    if (status === 'correct') {
-                        input.classList.add('correct-input');
-                        // Reemplazamos el input por un div si es necesario
-                        const parentCell = input.parentElement;
-                        if (parentCell && parentCell.tagName === 'TD') {
-                            const validatedValue = input.value;
-                            const validatedDiv = document.createElement('div');
-                            validatedDiv.className = 'validated-value correct';
-                            validatedDiv.textContent = validatedValue;
-                            validatedDiv.id = fieldId; // Mantener el ID para referencias futuras
-                            parentCell.replaceChild(validatedDiv, input);
-                        }
-                    } else if (status === 'incorrect') {
-                        input.classList.add('incorrect-input');
-                        const parentCell = input.parentElement;
-                        if (parentCell && parentCell.tagName === 'TD') {
-                            const validatedValue = input.value;
-                            const validatedDiv = document.createElement('div');
-                            validatedDiv.className = 'validated-value incorrect';
-                            validatedDiv.textContent = validatedValue;
-                            validatedDiv.id = fieldId;
-                            parentCell.replaceChild(validatedDiv, input);
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // Restaura los campos de la tabla de variables termodinámicas
-    const tableRows = document.querySelectorAll('#thermo-table tbody tr');
-    tableRows.forEach((row, rowIndex) => {
-        if (rowIndex < exerciseState.cycleData.length) { // Solo filas de procesos
-            ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, colIndex) => {
-                const fieldId = `${variable}-${rowIndex}`;
-                const cell = row.cells[colIndex + 1]; // +1 porque la primera columna es el proceso
-                if (!cell) {
-                    return; // Usar return en lugar de continue
-                }
-                
-                const input = cell.querySelector('input');
-                if (!input) {
-                    return; // Usar return en lugar de continue
-                }
-                
-                // Si hay un valor para este campo
-                if (exerciseState.userAnswers && exerciseState.userAnswers[fieldId]) {
-                    input.value = processValueFromString(exerciseState.userAnswers[fieldId]);
-                    
-                    // Si está validado
-                    if (isFieldValidated(fieldId)) {
-                        const status = getValidationStatus(fieldId);
-                        input.readOnly = true;
-                        
-                        if (status === 'correct') {
-                            // Formatear como validado correcto
-                            cell.innerHTML = '';
-                            const validatedDiv = document.createElement('div');
-                            validatedDiv.className = 'validated-value correct';
-                            validatedDiv.textContent = input.value;
-                            validatedDiv.id = fieldId;
-                            cell.appendChild(validatedDiv);
-                        } else if (status === 'incorrect') {
-                            // Formatear como validado incorrecto
-                            cell.innerHTML = '';
-                            const validatedDiv = document.createElement('div');
-                            validatedDiv.className = 'validated-value incorrect';
-                            validatedDiv.textContent = input.value;
-                            validatedDiv.id = fieldId;
-                            cell.appendChild(validatedDiv);
-                        }
-                    }
-                }
-            });
-        }
-    });
-    
-    // Restaura los totales
-    ['q', 'w', 'du', 'dh', 'ds'].forEach(variable => {
-        const totalId = `${variable}-total`;
-        const totalElement = document.getElementById(totalId);
-        if (totalElement && exerciseState.userAnswers[totalId]) {
-            totalElement.textContent = exerciseState.userAnswers[totalId];
-        }
-    });
-    
-    console.log("Restauración completada");
-    
-    // Actualizar los totales
-    updateRealTimeTotals();
-}
 
 /**
  * Genera un nuevo punto a partir de un punto inicial, siguiendo las leyes
@@ -4364,75 +4020,202 @@ document.addEventListener('languageChanged', function(e) {
  * Esta es una alternativa más sencilla a Firebase
  */
 function updateVisitCounterWithCountAPI() {
-    const VISIT_THRESHOLD = 30 * 60 * 1000; // 30 minutos en milisegundos
-    const LAST_VISIT_KEY = 'thermoSimulatorLastVisit';
-    
-    // Obtener el tiempo de la última visita del localStorage
-    const lastVisitTime = localStorage.getItem(LAST_VISIT_KEY) || '0';
-    const currentTime = new Date().getTime();
-    
-    // Verificar si esta es una nueva visita (más de 30 minutos desde la última)
-    const isNewVisit = (currentTime - parseInt(lastVisitTime) > VISIT_THRESHOLD);
-    
-    // Actualizar el tiempo de la última visita en localStorage
-    localStorage.setItem(LAST_VISIT_KEY, currentTime.toString());
-    
-    // ID o nombre para el contador (puedes personalizarlo)
-    const countNamespace = 'thermosimulator';
-    
+    const isNewVisit = isNewVisitForCounter();
+    const countNamespace = COUNT_API_NAMESPACE;
+
     // Endpoint para obtener el conteo actual
     fetch(`https://api.countapi.xyz/get/${countNamespace}/visits`)
-        .then(response => response.json())
-        .then(data => {
-            let currentCount = data.value || 0;
-            
-            // Actualizar el contador en la interfaz
-            const visitCountElement = document.getElementById('visit-count');
-            if (visitCountElement) {
-                visitCountElement.textContent = currentCount.toLocaleString();
-            }
-            
-            // Si es una nueva visita, incrementar el contador
-            if (isNewVisit) {
-                fetch(`https://api.countapi.xyz/hit/${countNamespace}/visits`)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Actualizar la interfaz con el nuevo valor
-                        if (visitCountElement && data.value) {
-                            visitCountElement.textContent = data.value.toLocaleString();
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error al incrementar el contador:", error);
-                    });
-            }
-        })
-        .catch(error => {
-            console.error("Error al obtener el contador:", error);
-            // Mostrar al menos el contador local en caso de error
-            showLocalVisitCounter();
-        });
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Error HTTP ${response.status} al leer contador`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        const currentCount = Number(data.value) || 0;
+        const visitCountElement = document.getElementById('visit-count');
+
+        if (visitCountElement) {
+            visitCountElement.textContent = currentCount.toLocaleString();
+        }
+
+        // Si es una nueva visita, incrementar el contador
+        if (isNewVisit) {
+            fetch(`https://api.countapi.xyz/hit/${countNamespace}/visits`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP ${response.status} al incrementar contador`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Actualizar la interfaz con el nuevo valor
+                    if (visitCountElement && data.value) {
+                        visitCountElement.textContent = data.value.toLocaleString();
+                    }
+                    recordVisitTimestamp();
+                })
+                .catch(error => {
+                    console.error("Error al incrementar el contador:", error);
+                    showLocalVisitCounter();
+                });
+        } else {
+            recordVisitTimestamp();
+        }
+    })
+    .catch(error => {
+        console.error("Error al obtener el contador:", error);
+        // Mostrar al menos el contador local en caso de error
+        showLocalVisitCounter();
+    });
 }
 
 /**
  * Muestra un contador de visitas local (fallback si Firebase no está disponible)
  */
 function showLocalVisitCounter() {
-    const VISIT_COUNTER_KEY = 'thermoSimulatorVisits';
-    let visitCount = parseInt(localStorage.getItem(VISIT_COUNTER_KEY) || '0');
-    
-    // Comprobar si hemos incrementado el contador en esta sesión
-    if (!window.visitCountIncremented) {
-        visitCount++;
-        localStorage.setItem(VISIT_COUNTER_KEY, visitCount.toString());
-        window.visitCountIncremented = true;
+    let visitCount = getLocalCounter(COUNTER_VISIT_KEY);
+
+    if (isNewVisitForCounter()) {
+        visitCount = incrementLocalCounter(COUNTER_VISIT_KEY, 1);
+        recordVisitTimestamp();
     }
-    
+
     // Mostrar el contador en la interfaz
-    const visitCountElement = document.getElementById('visit-count');
-    if (visitCountElement) {
-        visitCountElement.textContent = visitCount.toLocaleString();
+    renderCounterValue('visit-count', visitCount);
+}
+
+function isNewVisitForCounter() {
+    const lastVisitRaw = localStorage.getItem(COUNTER_VISIT_TIME_KEY);
+    const lastVisit = parseInt(lastVisitRaw, 10);
+    const currentTime = Date.now();
+
+    return !Number.isFinite(lastVisit) || (currentTime - lastVisit > COUNTER_VISIT_THRESHOLD_MS);
+}
+
+function recordVisitTimestamp() {
+    localStorage.setItem(COUNTER_VISIT_TIME_KEY, Date.now().toString());
+}
+
+function isFirebaseAvailable() {
+    return typeof firebase !== 'undefined' && firebase.database;
+}
+
+function getLocalCounter(key) {
+    const storedValue = localStorage.getItem(key) || '0';
+    const parsedValue = parseInt(storedValue, 10);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function setLocalCounter(key, value) {
+    localStorage.setItem(key, String(Math.max(0, value)));
+}
+
+function incrementLocalCounter(key, delta = 1) {
+    const value = getLocalCounter(key);
+    const nextValue = Math.max(0, value + delta);
+    setLocalCounter(key, nextValue);
+    return nextValue;
+}
+
+function renderCounterValue(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = value.toLocaleString();
     }
+}
+
+function sanitizeUiPreferences(preferences = {}) {
+    const validatedTab = (value) => {
+        if (typeof value === 'string' && document.querySelector(`.cycle-tab[data-cycle="${value}"]`)) {
+            return value;
+        }
+        return DEFAULT_UI_PREFERENCES.activeCycleTab;
+    };
+
+    return {
+        cycleType: CYCLE_TYPE_VALUES.includes(preferences.cycleType) ? preferences.cycleType : DEFAULT_UI_PREFERENCES.cycleType,
+        instructionsCollapsed: Boolean(preferences.instructionsCollapsed),
+        cyclesInfoCollapsed: Boolean(preferences.cyclesInfoCollapsed),
+        activeCycleTab: validatedTab(preferences.activeCycleTab)
+    };
+}
+
+function getUiPreferences() {
+    try {
+        const raw = localStorage.getItem(UI_PREFERENCES_KEY);
+        return sanitizeUiPreferences(raw ? JSON.parse(raw) : {});
+    } catch (error) {
+        console.warn('No se pudo leer preferencias de UI, usando valores por defecto.', error);
+        return { ...DEFAULT_UI_PREFERENCES };
+    }
+}
+
+function saveUiPreferences(updates) {
+    if (!updates || typeof updates !== 'object') return;
+
+    const current = getUiPreferences();
+    const merged = {
+        ...current,
+        ...updates
+    };
+
+    const safe = sanitizeUiPreferences(merged);
+    localStorage.setItem(UI_PREFERENCES_KEY, JSON.stringify(safe));
+}
+
+function activateCycleTab(tabId) {
+    const cycleTabs = document.querySelectorAll('.cycle-tab');
+    const cycleContents = document.querySelectorAll('.cycle-tab-content');
+
+    if (!cycleTabs.length || !cycleContents.length) {
+        return;
+    }
+
+    cycleTabs.forEach(tab => {
+        const isSelected = tab.getAttribute('data-cycle') === tabId;
+        tab.classList.toggle('active', isSelected);
+    });
+    
+    cycleContents.forEach(content => {
+        const isSelected = content.id === `${tabId}-tab`;
+        content.classList.toggle('active', isSelected);
+    });
+}
+
+function applyUiPreferences(preserveSharedExercise = false) {
+    const preferences = getUiPreferences();
+    const cycleSelector = document.getElementById('cycle-type-selector');
+    const instructions = document.querySelector('.instructions');
+    const cyclesInfo = document.querySelector('.cycles-info');
+    const collapseInstructionsBtn = document.getElementById('collapse-instructions');
+    const toggleCyclesInfoBtn = document.getElementById('toggle-cycles-info');
+
+    if (!preserveSharedExercise && cycleSelector && CYCLE_TYPE_VALUES.includes(preferences.cycleType)) {
+        cycleSelector.value = preferences.cycleType;
+    }
+
+    if (instructions) {
+        instructions.classList.toggle('collapsed', preferences.instructionsCollapsed);
+    }
+    if (cyclesInfo) {
+        cyclesInfo.classList.toggle('collapsed', preferences.cyclesInfoCollapsed);
+    }
+
+    if (collapseInstructionsBtn && typeof getTranslation === 'function') {
+        collapseInstructionsBtn.textContent = preferences.instructionsCollapsed ? getTranslation('show_instructions') : getTranslation('hide_instructions');
+    }
+    if (toggleCyclesInfoBtn && typeof getTranslation === 'function') {
+        toggleCyclesInfoBtn.textContent = preferences.cyclesInfoCollapsed ? getTranslation('show_cycles_info') : getTranslation('hide_cycles_info');
+    }
+
+    activateCycleTab(preferences.activeCycleTab);
+}
+
+function showLocalValidationCounters() {
+    renderCounterValue('correct-count', getLocalCounter(LOCAL_COUNTER_KEYS.correctValidations));
+    renderCounterValue('incorrect-count', getLocalCounter(LOCAL_COUNTER_KEYS.incorrectValidations));
+    renderCounterValue('completed-count', getLocalCounter(LOCAL_COUNTER_KEYS.completedCycles));
 }
 
 /**
@@ -4440,15 +4223,14 @@ function showLocalVisitCounter() {
  * Esta función decide qué implementación usar (Firebase o CountAPI)
  */
 function updateVisitCounter() {
-    // Puedes cambiar esta variable a 'countapi' o 'firebase' según tu preferencia
-    const COUNTER_SERVICE = 'firebase'; // 'countapi';
-    
-    if (COUNTER_SERVICE === 'firebase' && typeof firebase !== 'undefined' && firebase.database) {
-        // Usar Firebase si está disponible y configurado
+    if (COUNTER_SERVICE === 'firebase' && isFirebaseAvailable()) {
         updateVisitCounterWithFirebase();
     } else if (COUNTER_SERVICE === 'countapi') {
-        // Usar CountAPI (no requiere configuración adicional)
         updateVisitCounterWithCountAPI();
+    } else if (COUNTER_SERVICE === 'auto' && isFirebaseAvailable()) {
+        updateVisitCounterWithFirebase();
+    } else if (COUNTER_SERVICE === 'local') {
+        showLocalVisitCounter();
     } else {
         // Fallback a contador local
         console.warn("Servicio de contador no disponible. Usando contador local.");
@@ -4460,22 +4242,12 @@ function updateVisitCounter() {
  * Actualiza el contador de visitas global usando Firebase
  */
 function updateVisitCounterWithFirebase() {
-    const VISIT_THRESHOLD = 30 * 60 * 1000; // 30 minutos en milisegundos
-    const LAST_VISIT_KEY = 'thermoSimulatorLastVisit';
-    
-    // Obtener el tiempo de la última visita del localStorage
-    const lastVisitTime = localStorage.getItem(LAST_VISIT_KEY) || '0';
-    const currentTime = new Date().getTime();
-    
-    // Verificar si esta es una nueva visita (más de 30 minutos desde la última)
-    const isNewVisit = (currentTime - parseInt(lastVisitTime) > VISIT_THRESHOLD);
-    
-    // Actualizar el tiempo de la última visita en localStorage
-    localStorage.setItem(LAST_VISIT_KEY, currentTime.toString());
+    const isNewVisit = isNewVisitForCounter();
+    recordVisitTimestamp();
     
     // Obtener referencia a Firebase para el contador
     // Usamos un script aparte para cargar Firebase y evitar errores hasta que se implementa
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         // Referencia al contador en Firebase
         const visitsRef = firebase.database().ref('visits/counter');
         
@@ -4516,7 +4288,7 @@ function updateVisitCounterWithFirebase() {
  */
 function updateCorrectCounter() {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const correctCountRef = firebase.database().ref('validations/correct');
         
         // Usar una transacción para garantizar que el incremento sea atómico
@@ -4533,8 +4305,12 @@ function updateCorrectCounter() {
             }
         }).catch(function(error) {
             console.error("Error al actualizar el contador de validaciones correctas:", error);
+            renderCounterValue('correct-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.correctValidations, 1));
         });
+        return;
     }
+
+    renderCounterValue('correct-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.correctValidations, 1));
 }
 
 /**
@@ -4542,7 +4318,7 @@ function updateCorrectCounter() {
  */
 function updateIncorrectCounter() {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const incorrectCountRef = firebase.database().ref('validations/incorrect');
         
         // Usar una transacción para garantizar que el incremento sea atómico
@@ -4559,8 +4335,12 @@ function updateIncorrectCounter() {
             }
         }).catch(function(error) {
             console.error("Error al actualizar el contador de validaciones incorrectas:", error);
+            renderCounterValue('incorrect-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.incorrectValidations, 1));
         });
+        return;
     }
+
+    renderCounterValue('incorrect-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.incorrectValidations, 1));
 }
 
 /**
@@ -4568,7 +4348,7 @@ function updateIncorrectCounter() {
  */
 function loadValidationCounters() {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         // Cargar contador de validaciones correctas
         firebase.database().ref('validations/correct').once('value')
             .then(function(snapshot) {
@@ -4597,6 +4377,8 @@ function loadValidationCounters() {
             
         // Cargar contador de ciclos completados
         loadCompletedCyclesCounter();
+    } else {
+        showLocalValidationCounters();
     }
 }
 
@@ -4606,7 +4388,7 @@ function loadValidationCounters() {
  */
 function updateCorrectCounterAdjustment(adjustment) {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const correctCountRef = firebase.database().ref('validations/correct');
         
         // Usar una transacción para garantizar que el ajuste sea atómico
@@ -4622,10 +4404,13 @@ function updateCorrectCounterAdjustment(adjustment) {
                     correctCountElement.textContent = result.snapshot.val().toLocaleString();
                 }
             }
-        }).catch(function(error) {
-            console.error("Error al ajustar el contador de validaciones correctas:", error);
-        });
+    }).catch(function(error) {
+        console.error("Error al ajustar el contador de validaciones correctas:", error);
+    });
+        return;
     }
+
+    renderCounterValue('correct-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.correctValidations, adjustment));
 }
 
 /**
@@ -4634,7 +4419,7 @@ function updateCorrectCounterAdjustment(adjustment) {
  */
 function updateIncorrectCounterAdjustment(adjustment) {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const incorrectCountRef = firebase.database().ref('validations/incorrect');
         
         // Usar una transacción para garantizar que el ajuste sea atómico
@@ -4650,10 +4435,13 @@ function updateIncorrectCounterAdjustment(adjustment) {
                     incorrectCountElement.textContent = result.snapshot.val().toLocaleString();
                 }
             }
-        }).catch(function(error) {
-            console.error("Error al ajustar el contador de validaciones incorrectas:", error);
-        });
+    }).catch(function(error) {
+        console.error("Error al ajustar el contador de validaciones incorrectas:", error);
+    });
+        return;
     }
+
+    renderCounterValue('incorrect-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.incorrectValidations, adjustment));
 }
 
 /**
@@ -4661,7 +4449,7 @@ function updateIncorrectCounterAdjustment(adjustment) {
  */
 function incrementCompletedCyclesCounter() {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const completedCountRef = firebase.database().ref('completedCycles');
         
         // Usar una transacción para garantizar que el incremento sea atómico
@@ -4696,8 +4484,12 @@ function incrementCompletedCyclesCounter() {
             }
         }).catch(function(error) {
             console.error("Error al actualizar el contador de ciclos completados:", error);
+            renderCounterValue('completed-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.completedCycles, 1));
         });
+        return;
     }
+
+    renderCounterValue('completed-count', incrementLocalCounter(LOCAL_COUNTER_KEYS.completedCycles, 1));
 }
 
 /**
@@ -4705,7 +4497,7 @@ function incrementCompletedCyclesCounter() {
  */
 function loadCompletedCyclesCounter() {
     // Verificar si Firebase está disponible
-    if (typeof firebase !== 'undefined' && firebase.database) {
+    if (isFirebaseAvailable()) {
         const completedCountRef = firebase.database().ref('completedCycles');
         
         // Obtener el valor actual
@@ -4720,8 +4512,12 @@ function loadCompletedCyclesCounter() {
             })
             .catch(function(error) {
                 console.error("Error al cargar el contador de ciclos completados:", error);
+                showLocalValidationCounters();
             });
+        return;
     }
+
+    showLocalValidationCounters();
 }
 
 /**
@@ -5054,19 +4850,41 @@ function addExtractStateButton() {
 // showExtractButton();
 
 function loadSharedExercise() {
-    // Verificar si hay un estado en la URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const stateParam = urlParams.get('state');
+    // Verificar si hay un estado en la URL (nuevo: s=... comprimido, legacy: state=... base64)
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const compressedParam = searchParams.get('s') || hashParams.get('s');
+    const stateParam = searchParams.get('state') || hashParams.get('state');
     
-    if (stateParam) {
+    let exerciseState = null;
+    
+    if (compressedParam) {
+        try {
+            if (typeof LZString === 'undefined' || !LZString || typeof LZString.decompressFromEncodedURIComponent !== 'function') {
+                throw new Error('Falta el modulo de compresion (LZString).');
+            }
+            
+            const stateJson = LZString.decompressFromEncodedURIComponent(compressedParam);
+            if (!stateJson) {
+                throw new Error('No se pudo descomprimir el enlace. Puede estar danado o incompleto.');
+            }
+            
+            const parsed = JSON.parse(stateJson);
+            exerciseState = (parsed && parsed.v === 2) ? expandSharePayloadV2(parsed) : parsed;
+        } catch (error) {
+            console.error('Error al cargar el ejercicio compartido (s):', error);
+            alert('Error al cargar el ejercicio compartido: ' + (error && error.message ? error.message : String(error)));
+            return false;
+        }
+    } else if (stateParam) {
         try {
             // Limpiar y validar la cadena base64
             let cleanBase64 = stateParam.trim();
-            // Asegurar que la longitud sea múltiplo de 4 añadiendo padding si es necesario
+            // Asegurar que la longitud sea multiplo de 4 anadiendo padding si es necesario
             while (cleanBase64.length % 4 !== 0) {
                 cleanBase64 += '=';
             }
-            // Reemplazar caracteres problemáticos (puede que algunos navegadores los modifiquen)
+            // Reemplazar caracteres problematicos (puede que algunos navegadores los modifiquen)
             cleanBase64 = cleanBase64.replace(/-/g, '+').replace(/_/g, '/');
             
             // Intentar decodificar con manejo de errores
@@ -5080,52 +4898,70 @@ function loadSharedExercise() {
             
             // Decodificar URL
             const stateJson = decodeURIComponent(decodedString);
-            const exerciseState = JSON.parse(stateJson);
-            console.log("Estado compartido cargado:", exerciseState);
-            
-            // Restaurar el tipo de ciclo
-            document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
-            currentCycleType = exerciseState.cycleType;
-            
-            // Restaurar los datos del ciclo
-            cycleData = exerciseState.cycleData;
-            numMoles = exerciseState.numMoles || 1;
-            
-            // Restaurar el estado de contabilización del ciclo
-            if (exerciseState.cycleCounted) {
-                document.body.setAttribute('data-cycle-counted', 'true');
-            } else {
-                document.body.removeAttribute('data-cycle-counted');
-            }
-            
-            // Guardar las variables mostradas para usarlas en displayProblemData
-            if (exerciseState.shownVariables) {
-                shownVariables = exerciseState.shownVariables;
-            }
-            
-            // Dibujar el gráfico y configurar la interfaz
-            drawGraph();
-            displayProblemData();
-            setupTable();
-            
-            // Esperar a que se complete la renderización del DOM
-            setTimeout(() => {
-                // Restaurar respuestas y validaciones
-                restoreUserAnswersAndValidationImproved(exerciseState);
-                
-                // Mostrar mensaje de carga exitosa
-                showFeedbackMessage('Ejercicio compartido cargado con éxito', 'success');
-            }, 100);
-            
-            return true;
+            const parsed = JSON.parse(stateJson);
+            exerciseState = (parsed && parsed.v === 2) ? expandSharePayloadV2(parsed) : parsed;
         } catch (error) {
-            console.error('Error al cargar el ejercicio compartido:', error);
-            alert('Error al cargar el ejercicio compartido: ' + error.message);
+            console.error('Error al cargar el ejercicio compartido (state):', error);
+            alert('Error al cargar el ejercicio compartido: ' + (error && error.message ? error.message : String(error)));
             return false;
         }
+    } else {
+        return false;
     }
     
-    return false;
+    try {
+        console.log("Estado compartido cargado:", exerciseState);
+        
+        // Activar modo de ciclo compartido (aviso al reemplazar y uso de variables mostradas)
+        viewCycle = true;
+        
+        // Restaurar el tipo de ciclo
+        document.getElementById('cycle-type-selector').value = exerciseState.cycleType;
+        currentCycleType = exerciseState.cycleType;
+        
+        // Restaurar los datos del ciclo
+        cycleData = exerciseState.cycleData;
+        numMoles = exerciseState.numMoles || 1;
+        
+        // Restaurar el estado de contabilización del ciclo
+        if (exerciseState.cycleCounted) {
+            document.body.setAttribute('data-cycle-counted', 'true');
+        } else {
+            document.body.removeAttribute('data-cycle-counted');
+        }
+        
+        // Guardar las variables mostradas para usarlas en displayProblemData / setupTable
+        if (exerciseState._displayVars) {
+            window.sharedExerciseVariables = exerciseState._displayVars;
+        } else if (exerciseState.shownVariables) {
+            // shownVariables legacy (detallado) -> formato esperado por displayProblemData
+            window.sharedExerciseVariables = toDisplayVariablesFromShownVariables(exerciseState.shownVariables);
+        }
+        
+        if (exerciseState.shownVariables) {
+            shownVariables = exerciseState.shownVariables;
+        }
+        
+        // Dibujar el gráfico y configurar la interfaz
+        drawGraph();
+        displayProblemData();
+        setupTable();
+        
+        // Esperar a que se complete la renderización del DOM
+        setTimeout(() => {
+            // Restaurar respuestas y validaciones
+            restoreUserAnswersAndValidationImproved(exerciseState);
+            
+            // Mostrar mensaje de carga exitosa
+            showFeedbackMessage('Ejercicio compartido cargado con éxito', 'success');
+        }, 100);
+        
+        return true;
+    } catch (error) {
+        console.error('Error al cargar el ejercicio compartido:', error);
+        alert('Error al cargar el ejercicio compartido: ' + (error && error.message ? error.message : String(error)));
+        return false;
+    }
 }
 
 /**
@@ -5225,7 +5061,19 @@ function restorePointsTableInputsImproved(exerciseState) {
                 }
                 
                 // Extraer el valor del usuario de userAnswers
-                validatedDiv.textContent = userAnswer;
+                let displayText = userAnswer;
+                const hasMark = typeof displayText === 'string' && (displayText.includes('✓') || displayText.includes('✗'));
+                if (!hasMark) {
+                    const userValue = (userAnswer == null) ? '' : String(userAnswer).trim();
+                    const mark = status === 'correct' ? '✓' : '✗';
+                    let correctText = '';
+                    if (shownVar && typeof shownVar.originalValue === 'number') {
+                        if (variable === 'v') correctText = shownVar.originalValue.toFixed(4);
+                        else correctText = shownVar.originalValue.toFixed(2);
+                    }
+                    displayText = correctText ? `${userValue}${mark} ${correctText}` : `${userValue}${mark}`;
+                }
+                validatedDiv.textContent = displayText;
                 
                 // Reemplazar input o contenido actual de la celda
                 cell.innerHTML = '';
@@ -5286,6 +5134,7 @@ function restoreThermodynamicVariablesImproved(exerciseState) {
     }
     
     // Recorrer las filas de procesos (no la fila de totales)
+    const correctValues = computeCorrectThermoValuesForCycle();
     const rows = thermoTable.querySelectorAll('tbody tr:not(.total-row)');
     
     rows.forEach((row, rowIndex) => {
@@ -5309,7 +5158,19 @@ function restoreThermodynamicVariablesImproved(exerciseState) {
                     const validatedDiv = document.createElement('div');
                     validatedDiv.id = fieldId;
                     validatedDiv.className = `validated-value ${status}`;
-                    validatedDiv.textContent = originalUserAnswer; // Mostrar exactamente el valor original
+                    
+                    let displayText = originalUserAnswer;
+                    const hasMark = typeof displayText === 'string' && (displayText.includes('✓') || displayText.includes('✗'));
+                    if (!hasMark) {
+                        const userValue = (originalUserAnswer == null) ? '' : String(originalUserAnswer).trim();
+                        const mark = status === 'correct' ? '✓' : '✗';
+                        const cv = correctValues[rowIndex] && typeof correctValues[rowIndex][variable] === 'number'
+                            ? correctValues[rowIndex][variable]
+                            : null;
+                        const correctText = (cv == null) ? '' : cv.toFixed(2);
+                        displayText = correctText ? `${userValue}${mark} ${correctText}` : `${userValue}${mark}`;
+                    }
+                    validatedDiv.textContent = displayText;
                     
                     // Reemplazar input o contenido actual de la celda
                     cell.innerHTML = '';
@@ -5323,16 +5184,78 @@ function restoreThermodynamicVariablesImproved(exerciseState) {
         });
     });
     
-    // Restaurar valores en la fila de totales
-    const totalRow = thermoTable.querySelector('.total-row');
-    if (totalRow) {
-        ['q', 'w', 'du', 'dh', 'ds'].forEach((variable, varIndex) => {
-            const totalId = `${variable}-total`;
-            const totalCell = totalRow.cells[varIndex + 1];
-            
-            if (totalCell && exerciseState.userAnswers[totalId]) {
-                totalCell.textContent = exerciseState.userAnswers[totalId];
-            }
+    // Nota: no restauramos la fila de totales desde share para evitar destruir los inputs readonly.
+}
+
+function computeCorrectThermoValuesForCycle() {
+    // Replica la logica de validateResults() para poder reconstruir textos de validacion sin almacenar valores correctos.
+    if (!cycleData || cycleData.length === 0) return [];
+    
+    const correctValues = [];
+    for (let i = 0; i < cycleData.length; i++) {
+        const point = cycleData[i];
+        const nextIndex = point.nextIndex;
+        const nextPoint = cycleData[nextIndex];
+        const processType = point.processType;
+        
+        const deltaT = nextPoint.t - point.t;
+        const deltaV = nextPoint.v - point.v;
+        const deltaP = nextPoint.p - point.p;
+        
+        let q, w, du, dh, ds;
+        const cv = 3 * R / 2;
+        const cp = 5 * R / 2;
+        
+        switch (processType) {
+            case 0: // Adiabatico
+                q = 0;
+                du = numMoles * cv * deltaT;
+                w = -du;
+                dh = numMoles * cp * deltaT;
+                ds = 0;
+                break;
+            case 1: // Isocorico
+                w = 0;
+                du = numMoles * cv * deltaT;
+                q = du;
+                dh = numMoles * cp * deltaT;
+                ds = numMoles * cv * Math.log(nextPoint.t / point.t);
+                break;
+            case 2: // Isotermico
+                du = 0;
+                dh = 0;
+                w = numMoles * R * point.t * Math.log(nextPoint.v / point.v);
+                q = w;
+                ds = q / point.t;
+                break;
+            case 3: // Isobarico
+                w = point.p * 1000 * (nextPoint.v - point.v) / 1000;
+                du = numMoles * cv * deltaT;
+                q = numMoles * cp * deltaT;
+                dh = q;
+                ds = numMoles * cp * Math.log(nextPoint.t / point.t);
+                break;
+            case 4: // Lineal P-V
+                const m = deltaP / deltaV;
+                const a = point.p - m * point.v;
+                du = numMoles * cv * deltaT;
+                w = a * deltaV + m * (nextPoint.v**2 - point.v**2) / 2;
+                q = du + w;
+                dh = numMoles * cp * deltaT;
+                ds = numMoles * cv * Math.log(nextPoint.t / point.t) + numMoles * R * Math.log(nextPoint.v / point.v);
+                break;
+            default:
+                q = 0; w = 0; du = 0; dh = 0; ds = 0;
+        }
+        
+        correctValues.push({
+            q: parseFloat(q.toFixed(1)),
+            w: parseFloat(w.toFixed(1)),
+            du: parseFloat(du.toFixed(1)),
+            dh: parseFloat(dh.toFixed(1)),
+            ds: parseFloat(ds.toFixed(3))
         });
     }
+    
+    return correctValues;
 }

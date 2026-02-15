@@ -53,8 +53,7 @@ Esta aplicación está construida utilizando:
 - HTML5
 - CSS3
 - JavaScript vanilla (sin frameworks ni dependencias externas)
-
-El simulador funciona completamente en el navegador y no requiere conexión a internet después de cargar.
+- Puede funcionar en navegador de forma estática en GitHub Pages; opcionalmente usa Firebase para contadores globales.
 
 ## Compatibilidad
 
@@ -64,6 +63,16 @@ La aplicación es compatible con todos los navegadores modernos:
 - Safari
 - Edge
 
+## Despliegue en GitHub Pages
+
+- Subir estos archivos directamente al repositorio (`index.html`, `script.js`, `styles.css`, `i18n.js`, `404.html`).
+- La app funciona como sitio estático sin backend.
+- Por defecto, `index.html` deja el modo de contadores en `local`, con persistencia en `localStorage`.
+- También se recuerda en `localStorage` la configuración de interfaz (idioma, tipo de ciclo seleccionado y estado de paneles/traspados) para mejorar la experiencia al recargar.
+- Si quieres habilitar contadores globales sin cambiar la lógica:
+  - Establece `window.THERMO_COUNTER_SERVICE = 'countapi'` para usar CountAPI, o
+  - Reemplaza Firebase en `index.html` por tu configuración y define `window.THERMO_COUNTER_SERVICE = 'firebase'`.
+
 ## Autor
 
-Desarrollado como proyecto educativo para cursos de termodinámica. 
+Desarrollado como proyecto educativo para cursos de termodinámica.

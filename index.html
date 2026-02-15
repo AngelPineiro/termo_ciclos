@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Ciclos Termodinámicos</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260214-4">
     <style>
         /* Barra fija en la parte inferior para la licencia */
         .license-footer {
@@ -731,6 +731,414 @@
             color: #6366f1;
             font-size: 1rem;
         }
+
+        /* ================================
+           UI Refresh Overrides (Visual Only)
+           - Keeps all existing behavior
+           ================================ */
+        header {
+            max-width: 1300px;
+            margin: 10px auto 12px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0b2d53 0%, #1e3a8a 45%, #0ea5e9 120%);
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.14), transparent 45%),
+                radial-gradient(circle at 85% 35%, rgba(255, 255, 255, 0.10), transparent 55%);
+            pointer-events: none;
+        }
+
+        header h1 {
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Footer more legible on complex backgrounds */
+        .license-footer {
+            background: linear-gradient(135deg, #0b2d53, #1e3a8a);
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        body {
+            padding-bottom: 64px;
+        }
+
+        /* Controls bar: softer, more "card" like */
+        .buttons-container {
+            background-color: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 14px;
+            backdrop-filter: blur(8px);
+        }
+
+        .left-buttons {
+            flex-wrap: wrap;
+        }
+
+        .counters-container {
+            flex-wrap: wrap;
+        }
+
+        /* Buttons: unify style with clearer affordances */
+        .collapse-instructions, .toggle-cycles-info {
+            border-radius: 10px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
+        }
+
+        .collapse-instructions:hover, .toggle-cycles-info:hover {
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+        }
+
+        .language-select {
+            border-radius: 10px;
+        }
+
+        /* Counters: consistent chips */
+        .visit-counter,
+        .validation-counter,
+        .completed-counter {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background-color: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(8px);
+        }
+
+        .counter-label,
+        .counter-value {
+            color: #0f172a;
+        }
+
+        .validation-counter.correct {
+            border-color: rgba(22, 163, 74, 0.18);
+            background-color: rgba(22, 163, 74, 0.08);
+        }
+
+        .validation-counter.correct .counter-label,
+        .validation-counter.correct .counter-value {
+            color: #166534;
+        }
+
+        .validation-counter.incorrect {
+            border-color: rgba(220, 38, 38, 0.18);
+            background-color: rgba(220, 38, 38, 0.06);
+        }
+
+        .validation-counter.incorrect .counter-label,
+        .validation-counter.incorrect .counter-value {
+            color: #991b1b;
+        }
+
+        .completed-counter {
+            border-color: rgba(245, 158, 11, 0.22);
+            background-color: rgba(245, 158, 11, 0.10);
+        }
+
+        .completed-counter .counter-label,
+        .completed-counter .counter-value {
+            color: #92400e;
+        }
+
+        /* Energy bar: avoid purple bias, keep meaning */
+        .energy-bar {
+            background: linear-gradient(90deg, #1e3a8a, #0ea5e9, #f59e0b);
+        }
+
+        /* Main layout: make it feel like a "lab console" */
+        main {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .points-system-container {
+            border-radius: 16px;
+            padding: 14px 16px;
+            background:
+                radial-gradient(circle at 18% 30%, rgba(245, 158, 11, 0.18), transparent 40%),
+                radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.16), transparent 45%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.86));
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.10);
+            backdrop-filter: blur(10px);
+        }
+
+        .points-icon {
+            filter: drop-shadow(0 8px 12px rgba(245, 158, 11, 0.20));
+        }
+
+        @keyframes starPulse {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-1px) scale(1.06); }
+        }
+
+        .points-icon {
+            display: inline-block;
+            animation: starPulse 2.6s ease-in-out infinite;
+        }
+
+        .energy-bar-container {
+            height: 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background-color: rgba(255, 255, 255, 0.65);
+        }
+
+        .energy-bar {
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .energy-bar::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: repeating-linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.18) 0,
+                rgba(255, 255, 255, 0.18) 8px,
+                rgba(255, 255, 255, 0.05) 8px,
+                rgba(255, 255, 255, 0.05) 16px
+            );
+            opacity: 0.65;
+        }
+
+        .points-system-actions {
+            justify-content: flex-start;
+        }
+
+        .points-system-btn {
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
+        }
+
+        .points-system-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(15, 23, 42, 0.12);
+        }
+
+        .graph-container {
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.10);
+        }
+
+        #graph-canvas {
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            background-color: #ffffff;
+            background-image:
+                linear-gradient(rgba(30, 58, 138, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 58, 138, 0.04) 1px, transparent 1px);
+            background-size: 26px 26px;
+        }
+
+        .legend {
+            border-radius: 999px;
+            padding: 8px 10px;
+            gap: 10px;
+        }
+
+        .legend-item {
+            background-color: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            padding: 6px 8px;
+            border-radius: 999px;
+        }
+
+        .graph-button-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            row-gap: 10px;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background-color: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        #cycle-type-selector {
+            border-radius: 12px;
+            padding: 10px 12px;
+            min-width: 200px;
+            flex: 1 1 240px;
+            max-width: 100%;
+            font-weight: 600;
+        }
+
+        #generate-cycle-btn,
+        #validate-btn {
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        #generate-cycle-btn {
+            background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
+        }
+
+        #generate-cycle-btn::before {
+            content: '⟳';
+            margin-right: 8px;
+        }
+
+        .share-button {
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            white-space: nowrap;
+        }
+
+        .share-button::before {
+            content: '🔗';
+            margin-right: 8px;
+        }
+
+        #validate-btn {
+            background: linear-gradient(135deg, #166534, #22c55e);
+        }
+
+        #validate-btn::before {
+            content: '✓';
+            margin-right: 8px;
+        }
+
+        .data-container {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .problem-section,
+        .calculations-section {
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .instructions,
+        .cycles-info {
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background:
+                linear-gradient(180deg, rgba(30, 58, 138, 0.08), transparent 55%),
+                rgba(255, 255, 255, 0.92);
+        }
+
+        .instructions {
+            border-top: 4px solid rgba(245, 158, 11, 0.75);
+        }
+
+        .cycles-info {
+            border-top: 4px solid rgba(14, 165, 233, 0.75);
+        }
+
+        .cycle-tab {
+            border-radius: 999px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background-color: rgba(255, 255, 255, 0.70);
+        }
+
+        .cycle-tab.active {
+            background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+        }
+
+        .calculations-section {
+            background-color: rgba(255, 255, 255, 0.92);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .calculations-section .table-container {
+            flex: 1 1 auto;
+            min-height: 0;
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            overflow: auto;
+            background-color: rgba(255, 255, 255, 0.85);
+        }
+
+        #thermo-table tbody tr:focus-within,
+        .points-table tbody tr:focus-within {
+            background-color: rgba(14, 165, 233, 0.08);
+        }
+
+        @media (max-width: 700px) {
+            .graph-button-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #cycle-type-selector {
+                min-width: 0;
+                width: 100%;
+            }
+
+            #generate-cycle-btn {
+                width: 100%;
+            }
+
+            .share-button {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .legend {
+                border-radius: 16px;
+            }
+        }
+
+        /* Tooltips should also show on keyboard focus */
+        [data-i18n-tooltip]:focus-visible::after,
+        [data-i18n-tooltip]:focus-within::after {
+            opacity: 1;
+        }
+
+        .result-notification {
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+            transform: translate(-50%, -50%) scale(0.98);
+        }
+
+        .result-notification.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .result-notification,
+            .cycle-tab-content,
+            .points-icon {
+                transition: none !important;
+                animation: none !important;
+            }
+
+            .points-system-btn:hover,
+            .collapse-instructions:hover,
+            .toggle-cycles-info:hover {
+                transform: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1051,6 +1459,7 @@
                         <option value="brayton" data-i18n="brayton_cycle">Ciclo Brayton</option>
                     </select>
                     <button id="generate-cycle-btn" data-i18n="generate_cycle">Generar Nuevo Ciclo</button>
+                    <button id="share-btn" class="share-button" type="button" data-i18n="share_exercise">Compartir Ejercicio</button>
                 </div>
             </div>
             
@@ -1119,12 +1528,15 @@
         <span class="license-type" data-i18n="license">Licencia Apache 2.0</span> 
     </footer>
     
-    <!-- Scripts de Firebase (solo para contador de visitas global) -->
+    <script>
+        window.THERMO_COUNTER_SERVICE = 'firebase';
+    </script>
+
+    <!-- Firebase (contadores globales) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script>
-        // Configuración de Firebase
-        // IMPORTANTE: Debes reemplazar esto con tus propias credenciales de Firebase
+        // Configuracion de Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyADbPEkQI5jUT-KoFW1gNSn_RM1vxkINLE",
             authDomain: "termociclos-d7333.firebaseapp.com",
@@ -1135,8 +1547,7 @@
             appId: "1:877879251916:web:3de88987a2e74266804369",
             measurementId: "G-Y9014GL89B"
         };
-        
-        // Inicializar Firebase
+
         try {
             firebase.initializeApp(firebaseConfig);
             console.log("Firebase inicializado correctamente");
@@ -1145,7 +1556,8 @@
         }
     </script>
     
-    <script src="i18n.js"></script>
-    <script src="script.js"></script>
+    <script src="i18n.js?v=20260214-4"></script>
+    <script src="lz-string.min.js?v=20260214-4"></script>
+    <script src="script.js?v=20260214-4"></script>
 </body>
 </html> 
