@@ -976,3 +976,360 @@ input[data-validation-status="incorrect"] {
         animation: none !important;
     }
 }
+
+/* ======================================================================
+   Layout polish: "Datos del problema" + controls (safe CSS-only tweaks)
+   - Goal: reduce unnecessary inner scroll, especially for >3 etapas
+   - No DOM/JS changes
+   ====================================================================== */
+
+/* Make the problem-data panel tall enough on desktop to show the points table without scrolling in normal cases. */
+.problem-data {
+    max-height: min(48vh, 560px);
+    overflow-y: auto;
+    margin-bottom: 0;
+    padding: 12px;
+}
+
+/* Give more width to the points table and align both sub-panels nicely. */
+.problem-data-container {
+    grid-template-columns: minmax(260px, 0.85fr) minmax(360px, 1.15fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.gas-data,
+.point-data {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.70));
+    padding: 10px;
+}
+
+.gas-data h4,
+.point-data h4 {
+    margin: 0 0 8px 0;
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    letter-spacing: 0.2px;
+    color: var(--ink);
+}
+
+.gas-data .data-property {
+    display: block;
+    margin: 6px 0;
+    color: var(--muted);
+}
+
+/* Points table: slightly denser to fit more rows without losing readability. */
+.points-table th {
+    padding: 4px 6px;
+}
+
+.points-table td {
+    padding: 3px 6px;
+}
+
+/* Graph controls: wrap cleanly on smaller widths and keep a consistent toolbar feel. */
+.graph-button-container {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#cycle-type-selector {
+    flex: 1 1 240px;
+    min-width: 220px;
+}
+
+#generate-cycle-btn,
+#share-btn {
+    white-space: nowrap;
+}
+
+/* Header rows with action buttons should wrap instead of overflowing. */
+.table-header {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Responsive: keep the problem-data height reasonable on small screens. */
+@media (max-width: 1100px) {
+    .problem-data {
+        max-height: 34vh;
+    }
+
+    .problem-data-container {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .problem-data-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .problem-data {
+        max-height: 28vh;
+        padding: 10px;
+    }
+
+    #cycle-type-selector {
+        min-width: 0;
+        flex: 1 1 100%;
+    }
+}
+
+/* ======================================================================
+   Aesthetic boost (students): make it feel like a modern "lab dashboard"
+   - Pure CSS overrides (no DOM/JS changes)
+   - Keep readability high
+   ====================================================================== */
+
+body header {
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background:
+        radial-gradient(circle at 15% 25%, rgba(245, 158, 11, 0.22), transparent 42%),
+        radial-gradient(circle at 88% 35%, rgba(14, 165, 233, 0.24), transparent 44%),
+        linear-gradient(135deg, #0b1f55, #1e3a8a 42%, #0ea5e9);
+    box-shadow: var(--shadow-md);
+    padding: 14px 16px;
+    margin: 0 auto 12px;
+    max-width: 1300px;
+    position: relative;
+    overflow: hidden;
+}
+
+body header::after {
+    content: "";
+    position: absolute;
+    inset: -60px -120px auto auto;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.18), transparent 55%);
+    transform: rotate(18deg);
+    pointer-events: none;
+}
+
+body header h1 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    font-size: clamp(1.35rem, 1.05rem + 1.1vw, 2.05rem);
+}
+
+body .instructions-container,
+body .cycles-info-container {
+    max-width: 1300px;
+}
+
+/* Top control bar: glass card + better wrapping. */
+body .buttons-container {
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.68)) padding-box,
+        linear-gradient(135deg, rgba(14, 165, 233, 0.55), rgba(245, 158, 11, 0.32)) border-box;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    gap: 12px;
+}
+
+body .left-buttons,
+body .counters-container {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+body .language-select {
+    border-radius: 999px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    background-color: rgba(255, 255, 255, 0.86);
+}
+
+body .collapse-instructions,
+body .toggle-cycles-info {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background:
+        linear-gradient(135deg, var(--brand), rgba(14, 165, 233, 0.92));
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+    padding: 8px 14px;
+}
+
+body .collapse-instructions:hover,
+body .toggle-cycles-info:hover {
+    background:
+        linear-gradient(135deg, rgba(11, 31, 85, 0.98), rgba(14, 165, 233, 0.92));
+}
+
+/* Counter pills. */
+body .visit-counter,
+body .validation-counter,
+body .completed-counter {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.72);
+    padding: 6px 10px;
+    backdrop-filter: blur(8px);
+}
+
+body .counter-label {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+body .counter-value {
+    color: var(--ink);
+    font-size: 0.95rem;
+}
+
+body .validation-counter.correct {
+    border-color: rgba(22, 163, 74, 0.22);
+    background:
+        linear-gradient(180deg, rgba(22, 163, 74, 0.12), rgba(22, 163, 74, 0.05));
+}
+
+body .validation-counter.incorrect {
+    border-color: rgba(220, 38, 38, 0.22);
+    background:
+        linear-gradient(180deg, rgba(220, 38, 38, 0.10), rgba(220, 38, 38, 0.05));
+}
+
+/* Scoreboard card. */
+body .points-system-container {
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background:
+        radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.14), transparent 48%),
+        radial-gradient(circle at 80% 25%, rgba(245, 158, 11, 0.12), transparent 45%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.72)) padding-box,
+        linear-gradient(135deg, rgba(14, 165, 233, 0.55), rgba(245, 158, 11, 0.30)) border-box;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    padding: 12px 14px;
+}
+
+body #total-points {
+    font-family: var(--font-serif);
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    font-size: 1.55rem;
+}
+
+body .difficulty-container {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background-color: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(8px);
+}
+
+body .energy-bar-container {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    height: 18px;
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.03));
+}
+
+body .energy-bar {
+    border-radius: 999px;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+        0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+body .points-system-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+body .points-system-btn {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 8px 12px;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+/* Main cards: gradient border + clearer section headers. */
+body .graph-container,
+body .problem-section,
+body .calculations-section {
+    border: 1px solid transparent;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86)) padding-box,
+        linear-gradient(135deg, rgba(14, 165, 233, 0.55), rgba(245, 158, 11, 0.28)) border-box;
+    box-shadow: var(--shadow-md);
+}
+
+body #graph-canvas {
+    border-radius: 12px;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.10);
+}
+
+body .problem-section > h3,
+body .table-header h3 {
+    border-bottom: none;
+    padding-left: 14px;
+    position: relative;
+}
+
+body .problem-section > h3::before,
+body .table-header h3::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 70%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--accent), var(--brand-2));
+}
+
+/* Thermo table: modern header without changing sticky behavior. */
+body #thermo-table {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+body #thermo-table th {
+    background:
+        linear-gradient(180deg, rgba(11, 31, 85, 0.96), rgba(14, 165, 233, 0.86));
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+body #thermo-table td {
+    border-color: rgba(15, 23, 42, 0.10);
+}
+
+body #thermo-table tr:hover td {
+    background-color: rgba(14, 165, 233, 0.06);
+}
+
+/* Keep the fixed footer consistent with the new theme. */
+body .license-footer {
+    background:
+        radial-gradient(circle at 15% 25%, rgba(245, 158, 11, 0.18), transparent 45%),
+        linear-gradient(135deg, #0b1f55, #1e3a8a 42%, #0ea5e9);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body header,
+    body .buttons-container,
+    body .points-system-container,
+    body .graph-container,
+    body .problem-section,
+    body .calculations-section {
+        backdrop-filter: none !important;
+    }
+}
