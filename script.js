@@ -465,6 +465,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
     const hasSharedState = searchParams.has('s') || searchParams.has('state') || hashParams.has('s') || hashParams.has('state');
+
+    // UX: empezar siempre con estos paneles colapsados al abrir la pagina.
+    // (El usuario puede desplegarlos manualmente, pero al recargar vuelven a estar colapsados.)
+    saveUiPreferences({ instructionsCollapsed: true, cyclesInfoCollapsed: true });
     applyUiPreferences(hasSharedState);
 
     // Configurar manejadores de eventos
