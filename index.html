@@ -799,6 +799,25 @@
             box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
         }
 
+        /* Botón de política de puntos — color ámbar para diferenciarlo */
+        .toggle-points-policy {
+            background-color: #d97706;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.10);
+        }
+        .toggle-points-policy:hover {
+            background-color: #b45309;
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+        }
+
+
         .language-select {
             border-radius: 10px;
         }
@@ -1164,6 +1183,7 @@
                 </div>
                 <button class="collapse-instructions" id="collapse-instructions" data-i18n="show_instructions">Mostrar instrucciones</button>
                 <button class="toggle-cycles-info" id="toggle-cycles-info" data-i18n="show_cycles_info">Mostrar información sobre ciclos termodinámicos</button>
+                <button class="toggle-points-policy" id="toggle-points-policy" data-i18n="show_points_policy">Política de Puntos</button>
             </div>
             <div class="counters-container">
                 <div class="visit-counter">
@@ -1223,7 +1243,60 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- Sección de política de puntos -->
+    <div class="points-policy-section" id="points-policy-section" style="display:none; max-width:1300px; margin:0 auto 15px; padding:0 10px;">
+        <div class="cycles-info" style="padding:15px 20px;">
+            <h2 data-i18n="points_policy_title" style="color:#1e40af; font-size:1.2rem; margin-top:0; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">Política de Asignación de Puntos</h2>
+            <p data-i18n="points_policy_intro" style="font-size:0.95rem; margin-bottom:12px;">Los puntos se asignan por cada celda validada individualmente (Q, W, ΔU, ΔH, ΔS por proceso; P, V, T por punto). La cantidad depende del nivel de dificultad del ciclo generado:</p>
+
+            <!-- Tabla de puntos -->
+            <div style="overflow-x:auto; margin-bottom:14px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem; text-align:center;">
+                    <thead>
+                        <tr style="background:#1e3a8a; color:white;">
+                            <th style="padding:8px 12px; border:1px solid #2563eb;" data-i18n="points_policy_diff_col">Dificultad</th>
+                            <th style="padding:8px 12px; border:1px solid #2563eb;">⭐</th>
+                            <th style="padding:8px 12px; border:1px solid #2563eb;">⭐⭐</th>
+                            <th style="padding:8px 12px; border:1px solid #2563eb;">⭐⭐⭐</th>
+                            <th style="padding:8px 12px; border:1px solid #2563eb;">⭐⭐⭐⭐</th>
+                            <th style="padding:8px 12px; border:1px solid #2563eb;">⭐⭐⭐⭐⭐</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background:#f0fdf4;">
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; font-weight:bold; text-align:left;" data-i18n="points_policy_correct_col">Acierto</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">+10</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">+15</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">+20</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">+30</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">+40</td>
+                        </tr>
+                        <tr style="background:#fef2f2;">
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; font-weight:bold; text-align:left;" data-i18n="points_policy_wrong_col">Fallo</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#dc2626; font-weight:bold;">-10</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#dc2626; font-weight:bold;">-15</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#dc2626; font-weight:bold;">-20</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#dc2626; font-weight:bold;">-30</td>
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; color:#dc2626; font-weight:bold;">-40</td>
+                        </tr>
+                        <tr style="background:#f0f9ff;">
+                            <td style="padding:7px 12px; border:1px solid #e2e8f0; font-weight:bold; text-align:left;" data-i18n="points_policy_energy_col">Energía</td>
+                            <td colspan="5" style="padding:7px 12px; border:1px solid #e2e8f0;"><span style="color:#16a34a; font-weight:bold;">+5</span> acierto &nbsp;|&nbsp; <span style="color:#dc2626; font-weight:bold;">-10</span> fallo</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Notas -->
+            <ul style="font-size:0.88rem; color:#4b5563; padding-left:20px; margin:0;">
+                <li style="margin-bottom:6px;" data-i18n="points_policy_difficulty_note">El nivel de dificultad se calcula automáticamente según el número de procesos y la variedad de tipos utilizados en el ciclo.</li>
+                <li style="margin-bottom:6px;" data-i18n="points_policy_energy_note">La barra de energía (0–100) sube +5 con cada acierto y baja −10 con cada fallo.</li>
+                <li data-i18n="points_policy_dedup_note">Cada celda solo se puede validar una vez: los puntos no se vuelven a sumar si se pulsa "Validar Resultados" de nuevo.</li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Sección de información de ciclos -->
     <div class="cycles-info-container">
         <div class="cycles-info collapsed">

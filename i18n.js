@@ -189,6 +189,24 @@ const translations = {
         
         // Nueva clave para el tooltip del botón exportar progreso
         export_progress_tooltip: 'Debes completar todos los campos de la tabla para poder exportar tu progreso',
+        
+        // Diálogo de compartir ejercicio
+        share_dialog_title: 'Compartir Ejercicio',
+        share_dialog_copy_intro: 'Copia el siguiente enlace para compartir el ejercicio en su estado actual:',
+        share_dialog_copy_btn: 'Copiar',
+        share_dialog_copied_btn: '¡Copiado!',
+        share_dialog_close_btn: 'Cerrar',
+        show_points_policy: "Política de Puntos",
+        hide_points_policy: "Ocultar política de puntos",
+        points_policy_title: "Política de Asignación de Puntos",
+        points_policy_intro: "Los puntos se asignan por cada celda validada individualmente (Q, W, ΔU, ΔH, ΔS por proceso; P, V, T por punto). La cantidad depende del nivel de dificultad del ciclo generado:",
+        points_policy_diff_col: "Dificultad",
+        points_policy_correct_col: "Acierto",
+        points_policy_wrong_col: "Fallo",
+        points_policy_energy_col: "Energía",
+        points_policy_difficulty_note: "El nivel de dificultad se calcula automáticamente según el número de procesos y la variedad de tipos utilizados en el ciclo.",
+        points_policy_energy_note: "La barra de energía (0–100) sube +5 con cada acierto y baja −10 con cada fallo.",
+        points_policy_dedup_note: "Cada celda solo se puede validar una vez: los puntos no se vuelven a sumar si se pulsa \"Validar Resultados\" de nuevo.",
     },
     
     // English
@@ -377,6 +395,24 @@ const translations = {
         
         // New key for export progress button tooltip
         export_progress_tooltip: 'You must complete all fields in the table to export your progress',
+        
+        // Share exercise dialog
+        share_dialog_title: 'Share Exercise',
+        share_dialog_copy_intro: 'Copy the following link to share the exercise in its current state:',
+        share_dialog_copy_btn: 'Copy',
+        share_dialog_copied_btn: 'Copied!',
+        share_dialog_close_btn: 'Close',
+        show_points_policy: "Points Policy",
+        hide_points_policy: "Hide points policy",
+        points_policy_title: "Points Assignment Policy",
+        points_policy_intro: "Points are assigned for each individually validated cell (Q, W, ΔU, ΔH, ΔS per process; P, V, T per point). The amount depends on the difficulty level of the generated cycle:",
+        points_policy_diff_col: "Difficulty",
+        points_policy_correct_col: "Correct",
+        points_policy_wrong_col: "Wrong",
+        points_policy_energy_col: "Energy",
+        points_policy_difficulty_note: "The difficulty level is calculated automatically based on the number of processes and the variety of types used in the cycle.",
+        points_policy_energy_note: "The energy bar (0–100) increases +5 for each correct answer and decreases −10 for each wrong answer.",
+        points_policy_dedup_note: "Each cell can only be validated once: points are not added again if \"Validate Results\" is clicked a second time.",
     },
     
     // Galego
@@ -562,6 +598,24 @@ const translations = {
         
         // Nova clave para o tooltip do botón exportar progreso
         export_progress_tooltip: 'Debes completar todos os campos da táboa para poder exportar o teu progreso',
+        
+        // Diálogo de compartir exercicio
+        share_dialog_title: 'Compartir Exercicio',
+        share_dialog_copy_intro: 'Copia a seguinte ligazo para compartir o exercicio no seu estado actual:',
+        share_dialog_copy_btn: 'Copiar',
+        share_dialog_copied_btn: 'Copiado!',
+        share_dialog_close_btn: 'Pechar',
+        show_points_policy: "Política de Puntos",
+        hide_points_policy: "Ocultar política de puntos",
+        points_policy_title: "Política de Asignación de Puntos",
+        points_policy_intro: "Os puntos asígnanse por cada cela validada individualmente (Q, W, ΔU, ΔH, ΔS por proceso; P, V, T por punto). A cantidade depende do nivel de dificultade do ciclo xerado:",
+        points_policy_diff_col: "Dificultade",
+        points_policy_correct_col: "Acerto",
+        points_policy_wrong_col: "Fallo",
+        points_policy_energy_col: "Enerxía",
+        points_policy_difficulty_note: "O nivel de dificultade calcúlase automaticamente segundo o número de procesos e a variedade de tipos utilizados no ciclo.",
+        points_policy_energy_note: "A barra de enerxía (0–100) sobe +5 con cada acerto e baixa −10 con cada fallo.",
+        points_policy_dedup_note: "Cada cela só se pode validar unha vez: os puntos non se volven sumar se se preme \"Validar Resultados\" de novo.",
     },
     
     // Français
@@ -743,6 +797,24 @@ const translations = {
         
         // Nouvelle clé pour l'infobulle du bouton d'exportation de progression
         export_progress_tooltip: 'Vous devez compléter tous les champs du tableau pour exporter votre progression',
+        
+        // Boîte de dialogue de partage d'exercice
+        share_dialog_title: 'Partager l\'Exercice',
+        share_dialog_copy_intro: 'Copiez le lien suivant pour partager l\'exercice dans son état actuel :',
+        share_dialog_copy_btn: 'Copier',
+        share_dialog_copied_btn: 'Copié !',
+        share_dialog_close_btn: 'Fermer',
+        show_points_policy: "Politique de Points",
+        hide_points_policy: "Masquer la politique de points",
+        points_policy_title: "Politique d'Attribution des Points",
+        points_policy_intro: "Les points sont attribués pour chaque cellule validée individuellement (Q, W, ΔU, ΔH, ΔS par processus ; P, V, T par point). Le montant dépend du niveau de difficulté du cycle généré :",
+        points_policy_diff_col: "Difficulté",
+        points_policy_correct_col: "Bonne réponse",
+        points_policy_wrong_col: "Mauvaise réponse",
+        points_policy_energy_col: "Énergie",
+        points_policy_difficulty_note: "Le niveau de difficulté est calculé automatiquement en fonction du nombre de processus et de la variété des types utilisés dans le cycle.",
+        points_policy_energy_note: "La barre d'énergie (0–100) augmente de +5 pour chaque bonne réponse et diminue de −10 pour chaque mauvaise réponse.",
+        points_policy_dedup_note: "Chaque cellule ne peut être validée qu'une seule fois : les points ne sont pas ajoutés à nouveau si \"Valider les résultats\" est cliqué une deuxième fois.",
     },
     
     // Português
@@ -931,6 +1003,24 @@ const translations = {
         
         // Nova chave para a dica do botão de exportar progresso
         export_progress_tooltip: 'Você deve preencher todos os campos da tabela para exportar seu progresso',
+        
+        // Diálogo de compartilhar exercício
+        share_dialog_title: 'Compartilhar Exercício',
+        share_dialog_copy_intro: 'Copie o link a seguir para compartilhar o exercício no seu estado atual:',
+        share_dialog_copy_btn: 'Copiar',
+        share_dialog_copied_btn: 'Copiado!',
+        share_dialog_close_btn: 'Fechar',
+        show_points_policy: "Política de Pontos",
+        hide_points_policy: "Ocultar política de pontos",
+        points_policy_title: "Política de Atribuição de Pontos",
+        points_policy_intro: "Os pontos são atribuídos por cada célula validada individualmente (Q, W, ΔU, ΔH, ΔS por processo; P, V, T por ponto). A quantidade depende do nível de dificuldade do ciclo gerado:",
+        points_policy_diff_col: "Dificuldade",
+        points_policy_correct_col: "Acerto",
+        points_policy_wrong_col: "Erro",
+        points_policy_energy_col: "Energia",
+        points_policy_difficulty_note: "O nível de dificuldade é calculado automaticamente com base no número de processos e na variedade de tipos utilizados no ciclo.",
+        points_policy_energy_note: "A barra de energia (0–100) sobe +5 a cada acerto e desce −10 a cada erro.",
+        points_policy_dedup_note: "Cada célula só pode ser validada uma vez: os pontos não são somados novamente se \"Validar Resultados\" for clicado de novo.",
     },
     
     // 中文 (Chino)
@@ -1129,6 +1219,24 @@ const translations = {
         
         // 导出进度按钮工具提示的新键
         export_progress_tooltip: '您必须完成表格中的所有字段才能导出进度',
+        
+        // 分享练习对话框
+        share_dialog_title: '分享练习',
+        share_dialog_copy_intro: '复制以下链接以共享当前状态的练习:',
+        share_dialog_copy_btn: '复制',
+        share_dialog_copied_btn: '已复制！',
+        share_dialog_close_btn: '关闭',
+        show_points_policy: "积分政策",
+        hide_points_policy: "隐藏积分政策",
+        points_policy_title: "积分分配政策",
+        points_policy_intro: "每个单独验证的单元格（每个过程的Q、W、ΔU、ΔH、ΔS；每个点的P、V、T）都会获得积分。积分数量取决于生成循环的难度级别：",
+        points_policy_diff_col: "难度",
+        points_policy_correct_col: "正确",
+        points_policy_wrong_col: "错误",
+        points_policy_energy_col: "能量",
+        points_policy_difficulty_note: "难度级别根据循环中使用的过程数量和类型多样性自动计算。",
+        points_policy_energy_note: "能量条（0–100）每次正确回答增加+5，每次错误回答减少−10。",
+        points_policy_dedup_note: "每个单元格只能验证一次：再次点击\"验证结果\"不会重复计算积分。",
     },
     
     // 日本語 (Japonés)
@@ -1321,6 +1429,24 @@ const translations = {
         
         // エクスポートプログレスボタンのツールチップ用の新しいキー
         export_progress_tooltip: '進捗をエクスポートするには、表のすべてのフィールドを完了する必要があります',
+        
+        // 演習共有ダイアログ
+        share_dialog_title: '演習を共有',
+        share_dialog_copy_intro: '現在の状態の演習を共有するには、次のリンクをコピーしてください:',
+        share_dialog_copy_btn: 'コピー',
+        share_dialog_copied_btn: 'コピーしました！',
+        share_dialog_close_btn: '閉じる',
+        show_points_policy: "ポイントポリシー",
+        hide_points_policy: "ポイントポリシーを非表示",
+        points_policy_title: "ポイント割り当てポリシー",
+        points_policy_intro: "ポイントは各セルの個別検証ごとに付与されます（各プロセスのQ、W、ΔU、ΔH、ΔS、各点のP、V、T）。付与量は生成されたサイクルの難易度レベルによって異なります：",
+        points_policy_diff_col: "難易度",
+        points_policy_correct_col: "正解",
+        points_policy_wrong_col: "不正解",
+        points_policy_energy_col: "エネルギー",
+        points_policy_difficulty_note: "難易度レベルは、サイクルで使用されるプロセスの数と種類の多様性に基づいて自動的に計算されます。",
+        points_policy_energy_note: "エネルギーバー（0–100）は正解ごとに+5増加し、不正解ごとに−10減少します。",
+        points_policy_dedup_note: "各セルは一度しか検証できません：「結果を検証」を再度クリックしてもポイントは加算されません。",
     },
     // ... other languages ...
 };

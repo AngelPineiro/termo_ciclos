@@ -99,11 +99,12 @@ const gamificationSystem = {
         
         // Normalizar a un nivel del 1 al 5
         let difficultyLevel = 1;
-        if (calculatedDifficulty >= 3.0 && calculatedDifficulty <= 4.0) difficultyLevel = 1;
-        else if (calculatedDifficulty > 4.0 && calculatedDifficulty <= 5.5) difficultyLevel = 2;
-        else if (calculatedDifficulty > 5.5 && calculatedDifficulty <= 7.0) difficultyLevel = 3;
-        else if (calculatedDifficulty > 7.0 && calculatedDifficulty <= 8.5) difficultyLevel = 4;
-        else if (calculatedDifficulty > 8.5) difficultyLevel = 5;
+        if (calculatedDifficulty < 3.0) difficultyLevel = 1;
+        else if (calculatedDifficulty <= 4.0) difficultyLevel = 1;
+        else if (calculatedDifficulty <= 5.5) difficultyLevel = 2;
+        else if (calculatedDifficulty <= 7.0) difficultyLevel = 3;
+        else if (calculatedDifficulty <= 8.5) difficultyLevel = 4;
+        else difficultyLevel = 5;
         
         return difficultyLevel;
     },
@@ -239,12 +240,14 @@ const gamificationSystem = {
         const points = this.calculatePoints(gameState.currentDifficulty);
         
         if (isCorrect) {
-            // Sumar puntos y mostrar notificación
+            // Sumar puntos, actualizar energía y mostrar notificación
             this.updatePoints(points);
+            this.updateEnergyBar(5);   // +5 energía en acierto
             this.showNotification(true, points);
         } else {
-            // Restar puntos y mostrar notificación
+            // Restar puntos, actualizar energía y mostrar notificación
             this.updatePoints(-points);
+            this.updateEnergyBar(-10); // -10 energía en fallo
             this.showNotification(false);
         }
     },
@@ -607,7 +610,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Configurar pestañas de ciclos
+    // Configurar el botón de política de puntos
+    const togglePointsPolicyBtn = document.getElementById('toggle-points-policy');
+    if (togglePointsPolicyBtn) {
+        togglePointsPolicyBtn.addEventListener('click', function() {
+            const section = document.getElementById('points-policy-section');
+            if (!section) return;
+            const isVisible = section.style.display !== 'none';
+            section.style.display = isVisible ? 'none' : 'block';
+            const key = isVisible ? 'show_points_policy' : 'hide_points_policy';
+            togglePointsPolicyBtn.textContent = (typeof getTranslation === 'function')
+                ? getTranslation(key)
+                : (isVisible ? 'Política de Puntos' : 'Ocultar política de puntos');
+            // Si se acaba de mostrar, hacer scroll suave hasta la sección
+            if (!isVisible) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
     const cycleTabs = document.querySelectorAll('.cycle-tab');
 
     cycleTabs.forEach(tab => {
@@ -639,7 +660,7 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Genera un ciclo termodinámico siguiendo el algoritmo proporcionado
  */
-function generateCycle() {
+function generateCycle(depth = 0) {
     // Si estamos en modo de visualización de un ciclo compartido, no generar uno nuevo
     if (viewCycle) {
         console.log("En modo de visualización de ciclo compartido. No se generará un nuevo ciclo.");
@@ -682,7 +703,7 @@ function generateCycle() {
     
     // Si no es un ciclo aleatorio, usar el algoritmo original para ciclos predefinidos
     if (selectedCycle !== 'random') {
-        cycleData = generatePredefinedCycle(selectedCycle);
+        cycleData = generatePredefinedCycle(selectedCycle, depth);
         currentCycleType = selectedCycle;
         
         // Calcular la dificultad del ciclo y actualizar la interfaz
@@ -702,6 +723,12 @@ function generateCycle() {
     }
     
     try {
+        // Guardarán contra recursividad excesiva
+        if (depth > 50) {
+            console.warn("Límite de reintentos alcanzado en generateCycle. Usando ciclo simple.");
+            return generateSimpleCycle();
+        }
+        
         // Paso 1: Definir límites para presión y volumen
         const P_MIN = 50;    // kPa
         const P_MAX = 300;   // kPa
@@ -778,7 +805,7 @@ function generateCycle() {
             
             if (nextPoint === null) {
                 console.log(`No se pudo generar un punto válido para el proceso ${i}. Reiniciando...`);
-                return generateCycle(); // Reintentar con nuevos parámetros
+                return generateCycle(depth + 1); // Reintentar con nuevos parámetros
             }
             
             nextPoint.index = i + 1;
@@ -810,7 +837,7 @@ function generateCycle() {
         
         if (provisionalPoint === null) {
             console.log("No se pudo generar un punto provisional para el penúltimo proceso. Reiniciando...");
-            return generateCycle(); // Reintentar
+            return generateCycle(depth + 1); // Reintentar
         }
         
         // Paso 6: Resolver la intersección entre penúltimo y último proceso para cerrar el ciclo
@@ -821,13 +848,13 @@ function generateCycle() {
         
         if (!lastPoint) {
             console.log("No se pudo encontrar una intersección válida para cerrar el ciclo. Reiniciando...");
-            return generateCycle(); // Reintentar
+            return generateCycle(depth + 1); // Reintentar
         }
         
         // Verificar que el punto de intersección esté dentro de límites razonables
         if (lastPoint.p < P_MIN || lastPoint.p > P_MAX || lastPoint.v < V_MIN || lastPoint.v > V_MAX) {
             console.log("Punto de intersección fuera de los límites. Reiniciando...");
-            return generateCycle(); // Reintentar
+            return generateCycle(depth + 1); // Reintentar
         }
         
         // Paso 7: Añadir los puntos finales y completar el ciclo
@@ -864,7 +891,7 @@ function generateCycle() {
             
             if (!verifyProcess(point, nextPoint, processType)) {
                 console.log(`El proceso ${PROCESS_TYPES[processType]} no cumple las restricciones físicas.`);
-                return generateCycle(); // Reintentar
+                return generateCycle(depth + 1); // Reintentar
             }
             
             // Validación de cada proceso
@@ -891,8 +918,7 @@ function generateCycle() {
         
         // Actualizar la interfaz
         drawGraph();
-        displayProblemData();
-        setupTable();
+        displayProblemData(); // displayProblemData ya llama a setupTable() internamente
         
         // Limpiar la lista de celdas validadas para el nuevo ciclo
         gameState.validatedCells = new Set();
@@ -910,8 +936,7 @@ function generateCycle() {
         
         // Actualizar la interfaz
         drawGraph();
-        displayProblemData();
-        setupTable();
+        displayProblemData(); // displayProblemData ya llama a setupTable() internamente
         
         // Limpiar la lista de celdas validadas para el nuevo ciclo
         gameState.validatedCells = new Set();
@@ -1224,7 +1249,12 @@ function calculateProcessError(point, referencePoint, processType) {
 /**
  * Genera un ciclo predefinido basado en el tipo seleccionado
  */
-function generatePredefinedCycle(selectedCycle) {
+function generatePredefinedCycle(selectedCycle, depth = 0) {
+    // Guardaán contra recursividad excesiva
+    if (depth > 50) {
+        console.warn("Límite de reintentos alcanzado en generatePredefinedCycle. Usando ciclo simple.");
+        return generateSimpleCycle();
+    }
     const cycle = PREDEFINED_CYCLES[selectedCycle];
     const processTypes = [...cycle.processes]; // Copia los tipos de procesos
     const numProcesses = processTypes.length;
@@ -1282,7 +1312,7 @@ function generatePredefinedCycle(selectedCycle) {
             // Si no se encontró un punto viable después de los intentos máximos, regenerar el ciclo
             if (nextPoint === null) {
                 console.log("No se pudo encontrar un punto viable para cerrar el ciclo. Regenerando...");
-                return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
+                return generatePredefinedCycle(selectedCycle, depth + 1); // Intentar de nuevo con el mismo tipo de ciclo
             }
             
             // Asignar índice y agregar al array
@@ -1322,7 +1352,7 @@ function generatePredefinedCycle(selectedCycle) {
     }
     
     if (!allProcessesValid) {
-        return generatePredefinedCycle(selectedCycle); // Intentar de nuevo con el mismo tipo de ciclo
+        return generatePredefinedCycle(selectedCycle, depth + 1); // Intentar de nuevo con el mismo tipo de ciclo
     }
     
     // Actualizar el array global de datos del ciclo
@@ -2977,8 +3007,8 @@ function validateResults() {
                 break;
                 
             case 3: // Isobárico
-                // Trabajo en isobárico: w = P·ΔV
-                w = point.p * 1000 * (nextPoint.v - point.v) / 1000; // kPa·L a J
+                // Trabajo en isobárico: w = P·ΔV  (1 kPa·L = 1 J, conversión directa)
+                w = point.p * (nextPoint.v - point.v);
                 du = numMoles * cv * deltaT;
                 q = numMoles * cp * deltaT;
                 dh = q; // En isobárico: q = ΔH
@@ -2986,16 +3016,15 @@ function validateResults() {
                 break;
                 
             case 4: // Lineal P-V
-                // Cálculos aproximados para proceso lineal
-                const m = deltaP / deltaV; // units: kPa/L = 10^6 Pa/m^3
-                const a = point.p - m * point.v; // units: kPa
+                // Trabajo = área del trapecio bajo la recta P-V (1 kPa·L = 1 J)
+                const m = deltaP / deltaV; // pendiente en kPa/L
+                const a = point.p - m * point.v; // ordenada en el origen en kPa
 
                 du = numMoles * cv * deltaT;
-                w = a * deltaV + m * (nextPoint.v**2 - point.v**2) / 2; // units: J
-                //w = (point.p + nextPoint.p) / 2 * 1000 * deltaV / 1000; // kPa·L a J
+                // Integral de P·dV = a·ΔV + m·(V2²-V1²)/2 = (P1+P2)/2·ΔV
+                w = a * deltaV + m * (nextPoint.v**2 - point.v**2) / 2;
                 q = du + w; // Primera ley: q = du + w
                 dh = numMoles * cp * deltaT;
-                // Aproximación de entropía
                 ds = numMoles * cv * Math.log(nextPoint.t / point.t) + numMoles * R * Math.log(nextPoint.v / point.v);
                 break;
         }
@@ -3164,30 +3193,21 @@ function validateInput(inputId, correctValue) {
     
     // Marcar la respuesta como correcta o incorrecta
     if (isCorrect) {
-            markAsCorrect(input, correctValue);
+        markAsCorrect(input, correctValue); // internamente llama a processValidation(), que suma puntos y energía
         
         // Incrementar contador global de validaciones correctas
         updateCorrectCounter();
         
-        // Calcular y actualizar puntos según la dificultad
-        const pointsEarned = gamificationSystem.calculateDifficulty(cycleData);
-        gamificationSystem.addPoints(pointsEarned);
-        
-        // Preparar mensaje con los puntos reales
+        // Mostrar mensaje de feedback con los puntos reales que se acaban de sumar
+        const pointsEarned = gamificationSystem.calculatePoints(gameState.currentDifficulty);
         let feedbackMessage = getTranslation ? getTranslation('correct_answer') : "¡Excelente trabajo! Tu respuesta es correcta. +{points} puntos";
         feedbackMessage = feedbackMessage.replace('{points}', pointsEarned);
-        
-        // Mostrar un mensaje de retroalimentación positiva
         showFeedbackMessage(feedbackMessage, "success");
-        } else {
-            markAsIncorrect(input, correctValue);
+    } else {
+        markAsIncorrect(input, correctValue); // internamente llama a processValidation(), que resta puntos y energía
         
         // Incrementar contador global de validaciones incorrectas
         updateIncorrectCounter();
-        
-        // Calcular y restar puntos según la dificultad
-        const pointsLost = gamificationSystem.calculateDifficulty(cycleData);
-        gamificationSystem.subtractPoints(pointsLost);
         
         // Mostrar un mensaje de retroalimentación negativa
         showFeedbackMessage(getTranslation ? getTranslation('incorrect_answer') : "Respuesta incorrecta. Revisa tus cálculos e inténtalo de nuevo. ¡No te rindas!", "error");
@@ -3597,18 +3617,25 @@ function shareExercise() {
         shareUrl = `${baseUrl}#state=${stateBase64}`;
     }
     
-    // Mostrar diálogo con la URL para compartir
+    // Mostrar diálogo con la URL para compartir — textos traducidos
+    const t = (key) => (typeof getTranslation === 'function' ? getTranslation(key) : null);
+    const dialogTitle  = t('share_dialog_title')  || 'Compartir Ejercicio';
+    const dialogIntro  = t('share_dialog_copy_intro') || 'Copia el siguiente enlace para compartir el ejercicio en su estado actual:';
+    const copyBtnText  = t('share_dialog_copy_btn')   || 'Copiar';
+    const closeBtnText = t('share_dialog_close_btn')  || 'Cerrar';
+
     const dialogHtml = `
         <div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title">
-            <h3 id="share-dialog-title">Compartir Ejercicio</h3>
-            <p>Copia el siguiente enlace para compartir el ejercicio en su estado actual:</p>
+            <h3 id="share-dialog-title">${dialogTitle}</h3>
+            <p>${dialogIntro}</p>
             <div class="share-url-container">
-                <input type="text" id="share-url" value="${shareUrl}" readonly aria-label="Enlace para compartir">
-                <button id="copy-button" type="button">Copiar</button>
+                <input type="text" id="share-url" value="${shareUrl}" readonly aria-label="${dialogTitle}">
+                <button id="copy-button" type="button">${copyBtnText}</button>
             </div>
-            <button id="close-dialog" type="button">Cerrar</button>
+            <button id="close-dialog" type="button">${closeBtnText}</button>
         </div>
     `;
+
   
     // Crear elemento para el diálogo
     const dialogOverlay = document.createElement('div');
@@ -3657,11 +3684,11 @@ function shareExercise() {
                     document.execCommand('copy');
                 }
 
-                copyButton.textContent = '¡Copiado!';
+                copyButton.textContent = t('share_dialog_copied_btn') || '¡Copiado!';
                 copyButton.classList.add('copied');
                 window.setTimeout(() => {
                     if (copyButton && copyButton.isConnected) {
-                        copyButton.textContent = 'Copiar';
+                        copyButton.textContent = copyBtnText;
                         copyButton.classList.remove('copied');
                     }
                 }, 1500);
@@ -3673,7 +3700,7 @@ function shareExercise() {
                         shareUrlInput.select();
                     }
                     document.execCommand('copy');
-                    copyButton.textContent = '¡Copiado!';
+                    copyButton.textContent = t('share_dialog_copied_btn') || '¡Copiado!';
                 } catch (e) {
                     // Si no podemos copiar, al menos dejamos el enlace seleccionado.
                 }
@@ -3692,13 +3719,6 @@ function shareExercise() {
         }
     });
 
-    // //Esto debo borrarlo, sólo es para
-    // const blob = new Blob([stateJson], { type: 'application/json' });
-    // const url = window.URL.createObjectURL(blob);
-    // const a = document.createElement('a');
-    // a.href = url;
-    // a.download = 'kk.json';
-    // a.click();
 }
 
 
