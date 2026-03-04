@@ -584,8 +584,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const cyclesInfo = document.querySelector('.cycles-info');
             if (cyclesInfo) {
                 if (cyclesInfo.classList.contains('collapsed')) {
-                    // Mostrar información de ciclos
                     cyclesInfo.classList.remove('collapsed');
+                    
+                    // Asegurar que el usuario pueda ver el panel aplicando un scroll suave
+                    cyclesInfo.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
                     // Actualizar texto del botón
                     if (typeof getTranslation === 'function') {
