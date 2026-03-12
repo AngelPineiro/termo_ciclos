@@ -2324,6 +2324,8 @@ function drawGraph() {
             const point = cycleData[i];
             const x = scaleX(point.v);
             const y = scaleY(point.p);
+            const pointRadius = Math.max(5, containerWidth / 70);
+            const pointMaskRadius = pointRadius + 1.5;
             
             // Sombra para el punto
             ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
@@ -2331,17 +2333,23 @@ function drawGraph() {
             ctx.shadowOffsetX = 1;
             ctx.shadowOffsetY = 1;
             
-            // Círculo del punto
+            // Máscara ligeramente mayor para ocultar pequeños "rabitos" de las curvas
+            // que quedan visibles cerca del nodo por el muestreo del trazado.
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(x, y, Math.max(5, containerWidth / 70), 0, 2 * Math.PI);
+            ctx.arc(x, y, pointMaskRadius, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Círculo del punto
+            ctx.beginPath();
+            ctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
             ctx.fill();
             
             // Borde del punto
             ctx.strokeStyle = '#334155';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(x, y, Math.max(5, containerWidth / 70), 0, 2 * Math.PI);
+            ctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
             ctx.stroke();
             
             // Quitar sombra para el texto
