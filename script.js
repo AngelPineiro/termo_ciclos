@@ -5011,6 +5011,29 @@ function restoreUserAnswersAndValidationImproved(exerciseState) {
     updateRealTimeTotals();
 }
 
+function applyRestoredValidationMetadata(element, fieldId, status, userValue, correctValue) {
+    if (!element) return;
+
+    const normalizedStatus = status === 'correct' ? 'correct' : 'incorrect';
+    const normalizedUserValue = userValue == null ? '' : String(userValue).trim();
+
+    element.id = fieldId;
+    element.setAttribute('data-user-value', normalizedUserValue);
+    element.setAttribute('data-validation-status', normalizedStatus);
+    element.setAttribute('data-validated', 'true');
+    element.setAttribute('data-original-input-type', 'number');
+
+    if (correctValue != null && !Number.isNaN(Number(correctValue))) {
+        element.setAttribute('data-correct-value', String(correctValue));
+    } else {
+        element.removeAttribute('data-correct-value');
+    }
+
+    if (!element.classList.contains('validated-field')) {
+        element.classList.add('validated-field');
+    }
+}
+
 /**
  * Restaura los inputs en la tabla de puntos con el formato original
  */
@@ -5100,6 +5123,7 @@ function restorePointsTableInputsImproved(exerciseState) {
                     displayText = correctText ? `${userValue}${mark} ${correctText}` : `${userValue}${mark}`;
                 }
                 validatedDiv.textContent = displayText;
+                applyRestoredValidationMetadata(validatedDiv, fieldId, status, userAnswer, shownVar && typeof shownVar.originalValue === 'number' ? shownVar.originalValue : null);
                 
                 // Reemplazar input o contenido actual de la celda
                 cell.innerHTML = '';
@@ -5144,7 +5168,7 @@ function extractUserValue(validatedString) {
     // Formato posible: "-3✗ 61.30" o "0✓ 0.00"
     const match = validatedString.match(/^(-?\d+)(✓|✗)\s+(.+)$/);
     if (match) {
-        return match[3]; // El valor numérico
+        return match[1]; // El valor introducido por el usuario
     }
     return validatedString;
 }
@@ -5197,6 +5221,10 @@ function restoreThermodynamicVariablesImproved(exerciseState) {
                         displayText = correctText ? `${userValue}${mark} ${correctText}` : `${userValue}${mark}`;
                     }
                     validatedDiv.textContent = displayText;
+                    const correctValue = correctValues[rowIndex] && typeof correctValues[rowIndex][variable] === 'number'
+                        ? correctValues[rowIndex][variable]
+                        : null;
+                    applyRestoredValidationMetadata(validatedDiv, fieldId, status, originalUserAnswer, correctValue);
                     
                     // Reemplazar input o contenido actual de la celda
                     cell.innerHTML = '';
