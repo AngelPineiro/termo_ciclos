@@ -26,7 +26,7 @@ const PREDEFINED_CYCLES = {
     },
     rankine: {
         name: "Ciclo Rankine",
-        processes: [3, 0, 1, 2] // Isobárico, Adiabático, Isocórico, Isotérmico
+        processes: [0, 3, 0, 3] // Isentrópico≈Adiabático, Isobárico, Isentrópico≈Adiabático, Isobárico
     },
     brayton: {
         name: "Ciclo Brayton",
@@ -1032,10 +1032,10 @@ function generateFallbackPredefinedCycle(selectedCycle) {
         case 'rankine': {
             const processTypes = PREDEFINED_CYCLES.rankine.processes;
             return buildPoints([
-                { p: 120, v: 40 },
-                { p: 120, v: 60 },
-                { p: 74.3584475578, v: 80 },
-                { p: 60, v: 80 }
+                { p: 110, v: 55 },
+                { p: 178.8181713738, v: 40 },
+                { p: 178.8181713738, v: 62 },
+                { p: 110, v: 82.8327129104 }
             ], processTypes);
         }
 
