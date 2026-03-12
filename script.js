@@ -1356,6 +1356,7 @@ function generatePredefinedCycle(selectedCycle, depth = 0) {
     
     // Generar los puntos siguientes de manera secuencial
     let currentPoint = firstPoint;
+    const maxPointAttempts = 50;
     
     for (let i = 0; i < numProcesses - 1; i++) {
         const processType = processTypes[i];
@@ -1369,14 +1370,13 @@ function generatePredefinedCycle(selectedCycle, depth = 0) {
             // Generar puntos candidatos hasta encontrar uno viable
             let nextPoint = null;
             let attempts = 0;
-            const maxAttempts = 50;
             
-            while (attempts < maxAttempts) {
+            while (attempts < maxPointAttempts) {
                 // Generar un candidato usando el proceso actual
                 const candidate = generatePointByProcessType(currentPoint, processType);
                 
                 // Verificar si este punto puede cerrar el ciclo con el primer punto
-                if (isProcessValid(candidate, firstPoint, finalProcessType)) {
+                if (candidate && isProcessValid(candidate, firstPoint, finalProcessType)) {
                     nextPoint = candidate;
                     break;
                 }
@@ -1396,8 +1396,23 @@ function generatePredefinedCycle(selectedCycle, depth = 0) {
             currentPoint = nextPoint;
         } 
         else {
-            // Para los demás puntos, simplemente generamos según el proceso
-            const nextPoint = generatePointByProcessType(currentPoint, processType);
+            // Para los demás puntos, reintentamos hasta obtener un punto físicamente válido.
+            let nextPoint = null;
+            let attempts = 0;
+
+            while (attempts < maxPointAttempts && nextPoint === null) {
+                const candidate = generatePointByProcessType(currentPoint, processType);
+                if (candidate) {
+                    nextPoint = candidate;
+                }
+                attempts++;
+            }
+
+            if (nextPoint === null) {
+                console.log("No se pudo generar un punto válido para el ciclo predefinido. Regenerando...");
+                return generatePredefinedCycle(selectedCycle, depth + 1);
+            }
+
             nextPoint.index = i + 1;
             points.push(nextPoint);
             currentPoint = nextPoint;
@@ -5238,8 +5253,8 @@ function restorePointsTableInputsImproved(exerciseState) {
 function extractUserValue(validatedString) {
     if (!validatedString) return "";
     
-    // Formato posible: "-3✗ 61.30" o "0✓ 0.00"
-    const match = validatedString.match(/^(-?\d+)(✓|✗)\s+(.+)$/);
+    // Formatos posibles: "-3✗ 61.30", "12.5✓ 12.50", "1e-3✗ 0.002"
+    const match = validatedString.match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?)(✓|✗)\s+(.+)$/i);
     if (match) {
         return match[1]; // El valor introducido por el usuario
     }
