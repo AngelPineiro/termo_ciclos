@@ -2325,20 +2325,24 @@ function drawGraph() {
             const x = scaleX(point.v);
             const y = scaleY(point.p);
             const pointRadius = Math.max(5, containerWidth / 70);
-            const pointMaskRadius = pointRadius + 1.5;
-            
-            // Sombra para el punto
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            ctx.shadowBlur = 3;
-            ctx.shadowOffsetX = 1;
-            ctx.shadowOffsetY = 1;
+            const pointMaskRadius = pointRadius + Math.max(4, containerWidth / 140);
             
             // Máscara ligeramente mayor para ocultar pequeños "rabitos" de las curvas
             // que quedan visibles cerca del nodo por el muestreo del trazado.
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.arc(x, y, pointMaskRadius, 0, 2 * Math.PI);
             ctx.fill();
+            
+            // Sombra para el punto visible
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
             
             // Círculo del punto
             ctx.beginPath();
