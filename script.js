@@ -1227,6 +1227,62 @@ function solveProcessIntersection(startPoint, endPoint, process1Type, process2Ty
         console.log(`  Intersección Adiabático-Isotérmico: P=${p.toFixed(2)}, V=${v.toFixed(2)}`);
         return { p, v, t };
     }
+
+    // Caso: Adiabático + Isobárico
+    if ((process1Type === 0 && process2Type === 3) || (process1Type === 3 && process2Type === 0)) {
+        const adiabaticPoint = process1Type === 0 ? startPoint : endPoint;
+        const isobaricPoint = process1Type === 3 ? startPoint : endPoint;
+
+        const k = adiabaticPoint.p * Math.pow(adiabaticPoint.v, GAMMA);
+        const p = isobaricPoint.p;
+        const v = Math.pow(k / p, 1 / GAMMA);
+        const t = (p * v) / (numMoles * R);
+
+        console.log(`  Intersección Adiabático-Isobárico: P=${p.toFixed(2)}, V=${v.toFixed(2)}`);
+        return { p, v, t };
+    }
+
+    // Caso: Adiabático + Isocórico
+    if ((process1Type === 0 && process2Type === 1) || (process1Type === 1 && process2Type === 0)) {
+        const adiabaticPoint = process1Type === 0 ? startPoint : endPoint;
+        const isochoricPoint = process1Type === 1 ? startPoint : endPoint;
+
+        const k = adiabaticPoint.p * Math.pow(adiabaticPoint.v, GAMMA);
+        const v = isochoricPoint.v;
+        const p = k / Math.pow(v, GAMMA);
+        const t = (p * v) / (numMoles * R);
+
+        console.log(`  Intersección Adiabático-Isocórico: P=${p.toFixed(2)}, V=${v.toFixed(2)}`);
+        return { p, v, t };
+    }
+
+    // Caso: Isotérmico + Isobárico
+    if ((process1Type === 2 && process2Type === 3) || (process1Type === 3 && process2Type === 2)) {
+        const isothermalPoint = process1Type === 2 ? startPoint : endPoint;
+        const isobaricPoint = process1Type === 3 ? startPoint : endPoint;
+
+        const pv = isothermalPoint.p * isothermalPoint.v;
+        const p = isobaricPoint.p;
+        const v = pv / p;
+        const t = (p * v) / (numMoles * R);
+
+        console.log(`  Intersección Isotérmico-Isobárico: P=${p.toFixed(2)}, V=${v.toFixed(2)}`);
+        return { p, v, t };
+    }
+
+    // Caso: Isotérmico + Isocórico
+    if ((process1Type === 2 && process2Type === 1) || (process1Type === 1 && process2Type === 2)) {
+        const isothermalPoint = process1Type === 2 ? startPoint : endPoint;
+        const isochoricPoint = process1Type === 1 ? startPoint : endPoint;
+
+        const pv = isothermalPoint.p * isothermalPoint.v;
+        const v = isochoricPoint.v;
+        const p = pv / v;
+        const t = (p * v) / (numMoles * R);
+
+        console.log(`  Intersección Isotérmico-Isocórico: P=${p.toFixed(2)}, V=${v.toFixed(2)}`);
+        return { p, v, t };
+    }
     
     // Para otros casos, implementamos un método numérico de resolución de ecuaciones
     // similar al enfoque de main.py que usa sympy.nsolve
