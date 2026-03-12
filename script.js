@@ -1364,29 +1364,32 @@ function generatePredefinedCycle(selectedCycle, depth = 0) {
         // Si estamos en el penúltimo punto, necesitamos asegurar que
         // el último proceso pueda cerrar el ciclo
         if (i === numProcesses - 2) {
-            // Generar un punto que permita cerrar el ciclo con el proceso final
+            // Calcular el último punto por intersección exacta entre el proceso actual
+            // y el proceso final hacia el primer punto, en vez de depender de ensayo
+            // aleatorio. Esto reduce drásticamente la caída al fallback.
             const finalProcessType = processTypes[numProcesses - 1];
-            
-            // Generar puntos candidatos hasta encontrar uno viable
-            let nextPoint = null;
-            let attempts = 0;
-            
-            while (attempts < maxPointAttempts) {
-                // Generar un candidato usando el proceso actual
-                const candidate = generatePointByProcessType(currentPoint, processType);
-                
-                // Verificar si este punto puede cerrar el ciclo con el primer punto
-                if (candidate && isProcessValid(candidate, firstPoint, finalProcessType)) {
-                    nextPoint = candidate;
-                    break;
-                }
-                
-                attempts++;
+            let nextPoint = solveProcessIntersection(
+                currentPoint,
+                firstPoint,
+                processType,
+                finalProcessType
+            );
+
+            if (
+                nextPoint &&
+                !(
+                    nextPoint.p >= 30 && nextPoint.p <= 350 &&
+                    nextPoint.v >= 5 && nextPoint.v <= 200 &&
+                    verifyProcess(currentPoint, nextPoint, processType) &&
+                    verifyProcess(nextPoint, firstPoint, finalProcessType)
+                )
+            ) {
+                nextPoint = null;
             }
             
-            // Si no se encontró un punto viable después de los intentos máximos, regenerar el ciclo
+            // Si no se encontró una intersección viable, regenerar el ciclo
             if (nextPoint === null) {
-                console.log("No se pudo encontrar un punto viable para cerrar el ciclo. Regenerando...");
+                console.log("No se pudo resolver un cierre exacto válido para el ciclo. Regenerando...");
                 return generatePredefinedCycle(selectedCycle, depth + 1); // Intentar de nuevo con el mismo tipo de ciclo
             }
             
