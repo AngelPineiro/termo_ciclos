@@ -1033,9 +1033,9 @@ function generateFallbackPredefinedCycle(selectedCycle) {
             const processTypes = PREDEFINED_CYCLES.rankine.processes;
             return buildPoints([
                 { p: 110, v: 55 },
-                { p: 178.8181713738, v: 40 },
-                { p: 178.8181713738, v: 62 },
-                { p: 110, v: 82.8327129104 }
+                { p: 187.0239314478, v: 40 },
+                { p: 187.0239314478, v: 62 },
+                { p: 110, v: 85.25 }
             ], processTypes);
         }
 
@@ -1043,9 +1043,9 @@ function generateFallbackPredefinedCycle(selectedCycle) {
             const processTypes = PREDEFINED_CYCLES.brayton.processes;
             return buildPoints([
                 { p: 90, v: 60 },
-                { p: 143.7325231476, v: 45 },
-                { p: 143.7325231476, v: 65 },
-                { p: 90, v: 85.6575647727 }
+                { p: 145.3696474266, v: 45 },
+                { p: 145.3696474266, v: 65 },
+                { p: 90, v: 86.6666666667 }
             ], processTypes);
         }
 
@@ -2325,7 +2325,7 @@ function drawGraph() {
             const x = scaleX(point.v);
             const y = scaleY(point.p);
             const pointRadius = Math.max(5, containerWidth / 70);
-            const pointMaskRadius = pointRadius + Math.max(4, containerWidth / 140);
+            const pointMaskRadius = pointRadius + 1;
             
             // Máscara ligeramente mayor para ocultar pequeños "rabitos" de las curvas
             // que quedan visibles cerca del nodo por el muestreo del trazado.
@@ -2415,28 +2415,22 @@ function drawGraph() {
         return step;
     }
     
-    function dibujarProceso(ctx, startPoint, endPoint, processType, scaleX, scaleY) {
-        try {
-            const x1 = scaleX(startPoint.v);
-            const y1 = scaleY(startPoint.p);
-            const x2 = scaleX(endPoint.v);
-            const y2 = scaleY(endPoint.p);
-            
-            // Primero dibujamos una línea recta entre los puntos como base
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            
-            // Para procesos especiales (con curvas), calculamos puntos intermedios
-            switch (processType) {
-                case 0: // Adiabático: PV^γ = k
-                    // Para adiabáticas dibujamos puntos intermedios, pero cerrando siempre
-                    // exactamente en las coordenadas del punto final para evitar "rabitos"
-                    // por pequeñas discrepancias numéricas entre la curva teórica y el nodo.
-                    const k = startPoint.p * Math.pow(startPoint.v, GAMMA);
+function dibujarProceso(ctx, startPoint, endPoint, processType, scaleX, scaleY) {
+    try {
+        const x1 = scaleX(startPoint.v);
+        const y1 = scaleY(startPoint.p);
+        const x2 = scaleX(endPoint.v);
+        const y2 = scaleY(endPoint.p);
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        
+        // Para procesos especiales (con curvas), calculamos puntos intermedios
+        switch (processType) {
+            case 0: // Adiabático: PV^γ = k
+                const k = startPoint.p * Math.pow(startPoint.v, GAMMA);
                     const vMin = Math.min(startPoint.v, endPoint.v);
                     const vMax = Math.max(startPoint.v, endPoint.v);
-                    
-                    ctx.moveTo(x1, y1);
 
                     // Si el punto inicial tiene V mayor, ordenamos para dibujar de menor a mayor V
                     if (startPoint.v == vMin) {
@@ -2460,12 +2454,9 @@ function drawGraph() {
                     break;
                     
                 case 2: // Isotérmico: PV = constante
-                    // Igual que en adiabáticas, cerramos exactamente en el nodo final.
                     const pv = startPoint.p * startPoint.v;
                     const vMinIso = Math.min(startPoint.v, endPoint.v);
                     const vMaxIso = Math.max(startPoint.v, endPoint.v);
-                    
-                    ctx.moveTo(x1, y1);
 
                     // Si el punto inicial tiene V mayor, ordenamos para dibujar de menor a mayor V
                     if (startPoint.v == vMinIso) {
@@ -2489,7 +2480,6 @@ function drawGraph() {
                     break;
                     
                 default: // Para los procesos lineales, simplemente conectamos los puntos
-                    ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, y2);
                     break;
             }
