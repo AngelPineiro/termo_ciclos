@@ -2425,59 +2425,63 @@ function drawGraph() {
             // Para procesos especiales (con curvas), calculamos puntos intermedios
             switch (processType) {
                 case 0: // Adiabático: PV^γ = k
-                    // Para adiabáticas sólo necesitamos unos 10 puntos intermedios
+                    // Para adiabáticas dibujamos puntos intermedios, pero cerrando siempre
+                    // exactamente en las coordenadas del punto final para evitar "rabitos"
+                    // por pequeñas discrepancias numéricas entre la curva teórica y el nodo.
                     const k = startPoint.p * Math.pow(startPoint.v, GAMMA);
                     const vMin = Math.min(startPoint.v, endPoint.v);
                     const vMax = Math.max(startPoint.v, endPoint.v);
                     
+                    ctx.moveTo(x1, y1);
+
                     // Si el punto inicial tiene V mayor, ordenamos para dibujar de menor a mayor V
                     if (startPoint.v == vMin) {
-                        for (let i = 0; i <= 10; i++) {
+                        for (let i = 1; i < 10; i++) {
                             const v = vMin + (vMax - vMin) * (i / 10);
                             const p = k / Math.pow(v, GAMMA);
                             const x = scaleX(v);
                             const y = scaleY(p);
-                            if (i === 0) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
+                            ctx.lineTo(x, y);
                         }
                     } else {
-                        for (let i = 10; i >= 0; i--) {
+                        for (let i = 9; i >= 1; i--) {
                             const v = vMin + (vMax - vMin) * (i / 10);
                             const p = k / Math.pow(v, GAMMA);
                             const x = scaleX(v);
                             const y = scaleY(p);
-                            if (i === 10) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
+                            ctx.lineTo(x, y);
                         }
                     }
+                    ctx.lineTo(x2, y2);
                     break;
                     
                 case 2: // Isotérmico: PV = constante
-                    // Para isotermas también 10 puntos intermedios
+                    // Igual que en adiabáticas, cerramos exactamente en el nodo final.
                     const pv = startPoint.p * startPoint.v;
                     const vMinIso = Math.min(startPoint.v, endPoint.v);
                     const vMaxIso = Math.max(startPoint.v, endPoint.v);
                     
+                    ctx.moveTo(x1, y1);
+
                     // Si el punto inicial tiene V mayor, ordenamos para dibujar de menor a mayor V
                     if (startPoint.v == vMinIso) {
-                        for (let i = 0; i <= 10; i++) {
+                        for (let i = 1; i < 10; i++) {
                             const v = vMinIso + (vMaxIso - vMinIso) * (i / 10);
                             const p = pv / v;
                             const x = scaleX(v);
                             const y = scaleY(p);
-                            if (i === 0) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
+                            ctx.lineTo(x, y);
                         }
                     } else {
-                        for (let i = 10; i >= 0; i--) {
+                        for (let i = 9; i >= 1; i--) {
                             const v = vMinIso + (vMaxIso - vMinIso) * (i / 10);
                             const p = pv / v;
                             const x = scaleX(v);
                             const y = scaleY(p);
-                            if (i === 10) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
+                            ctx.lineTo(x, y);
                         }
                     }
+                    ctx.lineTo(x2, y2);
                     break;
                     
                 default: // Para los procesos lineales, simplemente conectamos los puntos
