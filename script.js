@@ -985,6 +985,75 @@ function generateSimpleCycle() {
     return simpleCycle;
 }
 
+function generateFallbackPredefinedCycle(selectedCycle) {
+    console.warn(`Usando fallback determinista para el ciclo predefinido: ${selectedCycle}`);
+
+    numMoles = 1;
+
+    const buildPoints = (rawPoints, processTypes) => rawPoints.map((point, index) => ({
+        ...point,
+        t: (point.p * point.v) / (numMoles * R),
+        index,
+        processType: processTypes[index],
+        nextIndex: (index + 1) % rawPoints.length
+    }));
+
+    switch (selectedCycle) {
+        case 'carnot': {
+            const processTypes = PREDEFINED_CYCLES.carnot.processes;
+            return buildPoints([
+                { p: 200, v: 30 },
+                { p: 133.3333333333, v: 45 },
+                { p: 54.5267215043, v: 75 },
+                { p: 81.7900822564, v: 50 }
+            ], processTypes);
+        }
+
+        case 'otto': {
+            const processTypes = PREDEFINED_CYCLES.otto.processes;
+            return buildPoints([
+                { p: 100, v: 60 },
+                { p: 180, v: 60 },
+                { p: 353.5331204091, v: 40 },
+                { p: 196.4072891162, v: 40 }
+            ], processTypes);
+        }
+
+        case 'diesel': {
+            const processTypes = PREDEFINED_CYCLES.diesel.processes;
+            return buildPoints([
+                { p: 100, v: 80 },
+                { p: 218.8434793393, v: 50 },
+                { p: 218.8434793393, v: 70 },
+                { p: 175.6375946866, v: 80 }
+            ], processTypes);
+        }
+
+        case 'rankine': {
+            const processTypes = PREDEFINED_CYCLES.rankine.processes;
+            return buildPoints([
+                { p: 120, v: 40 },
+                { p: 120, v: 60 },
+                { p: 74.3584475578, v: 80 },
+                { p: 60, v: 80 }
+            ], processTypes);
+        }
+
+        case 'brayton': {
+            const processTypes = PREDEFINED_CYCLES.brayton.processes;
+            return buildPoints([
+                { p: 90, v: 60 },
+                { p: 143.7325231476, v: 45 },
+                { p: 143.7325231476, v: 65 },
+                { p: 90, v: 85.6575647727 }
+            ], processTypes);
+        }
+
+        default:
+            return generateSimpleCycle();
+    }
+}
+
 /**
  * Verifica rigurosamente si un proceso termodinámico entre dos puntos
  * satisface las propiedades físicas del tipo de proceso especificado.
@@ -1254,10 +1323,14 @@ function calculateProcessError(point, referencePoint, processType) {
 function generatePredefinedCycle(selectedCycle, depth = 0) {
     // Guardaán contra recursividad excesiva
     if (depth > 50) {
-        console.warn("Límite de reintentos alcanzado en generatePredefinedCycle. Usando ciclo simple.");
-        return generateSimpleCycle();
+        console.warn("Límite de reintentos alcanzado en generatePredefinedCycle. Usando fallback del ciclo predefinido.");
+        return generateFallbackPredefinedCycle(selectedCycle);
     }
     const cycle = PREDEFINED_CYCLES[selectedCycle];
+    if (!cycle) {
+        console.warn(`Tipo de ciclo predefinido no reconocido: ${selectedCycle}. Usando ciclo simple.`);
+        return generateSimpleCycle();
+    }
     const processTypes = [...cycle.processes]; // Copia los tipos de procesos
     const numProcesses = processTypes.length;
     
